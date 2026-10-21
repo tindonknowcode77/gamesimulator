@@ -37,7 +37,6 @@ const SHOP_NPCS = {
   pizzaShop:   { name: 'Anh Tuấn (Quản Lý Cửa Hàng)', role: 'Role Quản Lý Fastfood · Khu 2 Nam', avatar: '👨‍🍳', color: '#f97316' }
 };
 
-// Hội thoại Chủ quán biến đổi theo Thời tiết & Thời gian
 const getDynamicShopDialog = (g) => {
   const pool = [];
 
@@ -104,7 +103,6 @@ const getDynamicShopDialog = (g) => {
     });
   }
 
-  // Các hội thoại thực tế thường ngày tại quán
   pool.push(
     {
       question: 'Đơn này khách chọn trả tiền mặt (COD), em ứng từ Ví Shipper trả tiền món cho quán trước rồi lấy hàng nhé!',
@@ -175,205 +173,309 @@ const CUSTOMER_NPCS = {
   customerB:  { name: 'Anh Hoàng (Chung Cư Cao Tầng)', role: 'Role Khách Chung Cư · Khu 5 Công Nghệ', avatar: '🧑‍💼', color: '#8b5cf6' }
 };
 
-// --- HỆ THỐNG HỘI THOẠI NGƯỜI NHẬN HÀNG NGẪU NHIÊN THEO THỜI TIẾT + THỜI GIAN + ĐỊA ĐIỂM ---
+// Nhân vật KHÁCH OÁI OĂM / THƯỢNG ĐẾ HẠCH SÁCH (Xuất hiện mỗi 2-3 đơn)
+const TOXIC_CUSTOMER_NPCS = {
+  university: { name: 'Khách Hạch Sách Cổng KTX', role: '💢 Khách Oái Oăm · Chuyên Đánh 1 Sao', avatar: '🤬', color: '#ef4444' },
+  hospital:   { name: 'Vị Khách Khó Tính Cổng Viện', role: '💢 Khách Oái Oăm · Hay Khiếu Nại Tổng Đài', avatar: '😠', color: '#ef4444' },
+  customerA:  { name: 'Bà Cô Hẻm Sâu Hay Bắt Bẻ', role: '💢 Khách Oái Oăm · Soi Từng Bịch Tương Ớt', avatar: '😤', color: '#ef4444' },
+  customerB:  { name: 'Vị "Thượng Đế" Chung Cư B', role: '💢 Khách Oái Oăm · Ép Mang Lên Tầng 18', avatar: '😡', color: '#ef4444' }
+};
+
+// --- BỘ KỊCH BẢN CÃI LỘN & ĐÁNH GIÁ 1 SAO OAN NGOÀI ĐỜI THỰC (MỖI 2-3 ĐƠN GẶP 1 LẦN) ---
+const getToxicCustomerDialog = (g, custKey) => {
+  const weather = g.weather;
+  const isNight = g.isNight;
+
+  const toxicScenarios = [
+    // Kịch bản 1: Bắt mang lên tận phòng tầng 18 dù bảo vệ cấm + dọa 1 sao
+    {
+      isToxic: true,
+      conditionTag: '💢 CỨ 2-3 ĐƠN GẶP 1 KHÁCH OÁI OĂM: Ép leo lầu trái quy định & dọa đánh 1 sao!',
+      question: pickRandom([
+        'Tôi trả 16.000đ tiền ship rồi thì anh phải tự lách bảo vệ mang lên tận cửa phòng tầng 18 cho tôi! Tôi không xuống sảnh lấy đâu, không mang lên tôi đánh 1 sao báo tổng đài khóa nick bây giờ!',
+        'Sao bắt tôi phải đi bộ ra tận cổng lấy đồ ăn?! Shipper gì mà lười biếng vậy, mang vào tận bậc thềm trong nhà cho tôi ngay không tôi hủy đơn đánh 1 sao đấy!'
+      ]),
+      options: [
+        {
+          text: '🤬 Cãi tay đôi luôn: "Cước có mười mấy nghìn sàn cắt 27.2% còn được 8.000đ, bảo vệ cấm lên lầu sao anh/chị ép người quá vậy?!"',
+          effect: () => ({
+            energy: -8,
+            rating: -0.28,
+            wagePenalty: 15,
+            reply: pickRandom([
+              'À giỏi! Dám cãi tay đôi với khách hả?! Tôi vừa bấm ĐÁNH GIÁ 1 SAO kèm báo cáo "Tài xế thái độ lồi lõm" lên tổng đài trừ tiền Ví của anh rồi đấy!',
+              'Hỗn láo! Làm dịch vụ mà dám bật lại thượng đế à?! 1 SAO thẳng tay + gửi đơn khiếu nại khóa tài khoản!'
+            ]),
+            log: '🤬 <strong>Đụng độ cãi lộn nảy lửa:</strong> Bị khách đánh <strong>1 SAO (-0.28 ⭐)</strong> và báo tổng đài phạt <strong>-15.000đ</strong> trong Ví! Thuật toán luôn đứng về phía khách hàng bất kể đúng sai!'
+          })
+        },
+        {
+          text: '😓 Nhịn nhục xuống nước năn nỉ bảo vệ để mang vào tận nơi cho êm chuyện',
+          effect: () => ({
+            energy: -12,
+            rating: -0.15,
+            reply: pickRandom([
+              'Có thế thôi mà cũng phải để nói nặng lời! Giao chậm mất thêm 5 phút của tôi, tôi vẫn đánh 1 SAO cho nhớ!',
+              'Lần sau biết điều thì mang lên ngay từ đầu đi! Thái độ vùng vằng, tôi cho 1 SAO!'
+            ]),
+            log: '😭 <strong>Nhịn nhục vẫn ăn 1 sao oan (-0.15 ⭐):</strong> Tốn thêm -12% thể lực leo bộ nhưng khách vẫn lạnh lùng đánh 1 sao vì "làm mất thời gian của khách"!'
+          })
+        },
+        {
+          text: '📹 Bật điện thoại quay video làm bằng chứng & gọi Tổng đài / Hội Quán Shipper can thiệp',
+          effect: () => ({
+            energy: -5,
+            rating: -0.10,
+            reply: 'Anh dám quay video tôi à?! Tôi đánh 1 sao trên App xem tổng đài bênh tôi hay bênh anh!',
+            log: '📹 <strong>Giữ bằng chứng tự vệ:</strong> Tạm thời bị khách đánh 1 sao (-0.10 ⭐), hãy lái xe tới <strong>🤝 Hội Quán Shipper (Khu 3)</strong> để anh em Công đoàn giúp xóa sao oan!'
+          })
+        }
+      ]
+    },
+    // Kịch bản 2: Đổ thừa đá tan / đồ nguội / thiếu tương ớt của quán sang đầu Shipper
+    {
+      isToxic: true,
+      conditionTag: '💢 KHÁCH OÁI OĂM KIẾM CHUYỆN: Đổ lỗi của Quán & Thời tiết lên đầu Shipper!',
+      question: weather !== 'clear'
+        ? 'Trời mưa thì kệ trời mưa chứ! Sao giao tới nơi túi giấy bị ẩm hơi nước mà ly trà sữa đá tan hết 1/3 thế này?! Tôi trừ tiền tip, đánh 1 sao báo App đền tiền!'
+        : 'Mở hộp cơm ra thấy quán quên bỏ bịch tương ớt với canh hơi nguội! Anh làm shipper kiểu gì không tự nếm kiểm tra trước?! Tôi đánh 1 sao trừ điểm anh!',
+      options: [
+        {
+          text: '😤 Bức xúc phản pháo: "Túi đồ ăn quán bấm ghim niêm phong kín mít, em mở ra kiểm tra sao được mà chị đổ thừa em?!"',
+          effect: () => ({
+            energy: -7,
+            rating: -0.25,
+            reply: pickRandom([
+              'Tôi không cần biết quán hay shipper! Anh là người cầm đồ giao cho tôi mà còn cãi chem chẻm à?! Nhận ngay 1 SAO nhé!',
+              'Lại còn lý sự! Tôi chụp hình gửi App báo "Tài xế làm hỏng món & cãi khách" cho trừ điểm thưởng của anh!'
+            ]),
+            log: '💢 <strong>Cãi lộn vì lỗi của quán:</strong> Quán quên bỏ gia vị nhưng khách trút giận đánh <strong>1 SAO (-0.25 ⭐)</strong> vào tài khoản Shipper!'
+          })
+        },
+        {
+          text: '💸 Bấm bụng rút 10.000đ tiền túi đền bù cho khách để xin đừng đánh 1 sao',
+          effect: () => ({
+            energy: -5,
+            rating: -0.08,
+            wagePenalty: 10,
+            reply: 'Thôi được, cầm 10.000đ đền bù này thì tôi tha không báo khóa nick, nhưng vẫn chấm 2 sao cảnh cáo nhé!',
+            log: '💸 <strong>Lỗ ngược cuốc xe:</strong> Phải tự móc túi đền <strong>-10.000đ</strong> cho lỗi của quán mà vẫn bị tụt -0.08 ⭐!'
+          })
+        }
+      ]
+    },
+    // Kịch bản 3: Khách gọi 10 cuộc không nghe máy, ra trễ còn mắng ngược Shipper
+    {
+      isToxic: true,
+      conditionTag: '💢 KHÁCH OÁI OĂM: Gọi 10 cuộc không nghe máy, ra cổng còn chửi ngược!',
+      question: isNight
+        ? 'Đêm hôm khuya khoắt gọi điện thoại gì lắm thế?! Tôi đang xem phim dở tập cuối, bắt người ta ra lấy liền làm tụt cả hứng! Thái độ giục khách thế này xứng đáng 1 sao!'
+        : 'Gọi mới có chục cuộc nhỡ trong 15 phút mà đã bấm chuông cửa inh ỏi! Anh đứng ngoài nắng đợi 15 phút thì chết ai mà giục?! Tôi đánh 1 sao cho chừa thói hối khách!',
+      options: [
+        {
+          text: '🤬 Nổi nóng cãi lại: "Em đứng phơi nắng/mưa 15 phút gọi cháy máy anh/chị mới ra, còn đơn sau đang đợi nữa chứ bộ!"',
+          effect: () => ({
+            energy: -8,
+            rating: -0.30,
+            reply: 'À dám lớn tiếng dạy đời khách hàng hả?! Đưa đồ ăn đây rồi ăn ngay 1 SAO + phốt lên mạng xã hội nhé!',
+            log: '🔥 <strong>Cãi nhau to tại cổng nhà khách:</strong> Đứng đợi 15 phút không công lại còn bị khách đánh <strong>1 SAO (-0.30 ⭐)</strong>!'
+          })
+        },
+        {
+          text: '😔 Cắn răng im lặng giao hàng cho xong để chạy cuốc tiếp theo kẻo mất thưởng ngày',
+          effect: () => ({
+            energy: -6,
+            rating: -0.15,
+            reply: 'Mặt mũi hầm hầm không nói câu cảm ơn nào à?! Vẫn cho 1 SAO vì mặt thái độ!',
+            log: '😔 <strong>Ức chế tâm lý:</strong> Im lặng nhẫn nhịn vẫn bị khách kiếm cớ đánh 1 sao (-0.15 ⭐) vì "nhìn mặt không tươi cười"!'
+          })
+        }
+      ]
+    },
+    // Kịch bản 4: Kỳ kèo tiền phụ phí mưa bão / ca đêm và nghi ngờ shipper kê giá
+    {
+      isToxic: true,
+      conditionTag: '💢 KHÁCH OÁI OĂM: Kỳ kèo phụ phí & vu khống Shipper tự kê giá cước!',
+      question: 'Ủa mọi khi đặt đơn này cước có 15.000đ, sao hôm nay lên tới hơn 20.000đ vậy?! Anh chỉnh sửa hóa đơn ăn chặn tiền lẻ của tôi đúng không?! Tôi chỉ trả 15.000đ thôi, không thì ôm hàng về đi!',
+      options: [
+        {
+          text: '💢 Cãi thẳng: "Giá hiển thị rõ ràng trên App lúc chị đặt, sàn tự cộng phụ phí rồi cắt của em 27.2%, em ăn chặn ngàn nào của chị?!"',
+          effect: () => ({
+            energy: -7,
+            rating: -0.22,
+            reply: 'Miệng lưỡi sắc sảo gớm nhỉ! Trả thì trả nhưng tôi tặng kèm cho cái ĐÁNH GIÁ 1 SAO cho bõ tức!',
+            log: '💢 <strong>Bị vu oan ăn chặn tiền ship:</strong> Cãi lại để bảo vệ danh dự thì bị khách trả đũa bằng <strong>1 SAO (-0.22 ⭐)</strong>!'
+          })
+        },
+        {
+          text: '🛑 Chịu thiệt thiếu 5.000đ tiền lẻ của khách cho khỏi bị bom nguyên đơn đồ ăn COD',
+          effect: () => ({
+            energy: -5,
+            rating: -0.10,
+            wagePenalty: 5,
+            reply: 'Đấy biết điều bớt 5.000đ thế ngay từ đầu có phải nhanh không! Thôi cho 2 sao nhé!',
+            log: '😢 <strong>Sợ bị bom hàng COD:</strong> Đành chịu mất <strong>-5.000đ</strong> tiền túi và bị trừ -0.10 ⭐ để thu hồi vốn ứng đồ ăn!'
+          })
+        }
+      ]
+    }
+  ];
+
+  return pickRandom(toxicScenarios);
+};
+
+// --- HỆ THỐNG HỘI THOẠI NGƯỜI NHẬN HÀNG BÌNH THƯỜNG THEO THỜI TIẾT + THỜI GIAN + ĐỊA ĐIỂM ---
 const getDynamicCustomerDialog = (g, custKey) => {
-  const weather = g.weather; // 'clear' | 'rain' | 'storm'
-  const isNight = g.isNight; // true | false
-  const isRushHour = g.isRushHour; // true | false
+  const weather = g.weather;
+  const isNight = g.isNight;
+  const isRushHour = g.isRushHour;
   const isBatched = g.isBatchedOrder;
 
   const candidates = [];
 
-  // 1. KỊCH BẢN THEO THỜI TIẾT: MƯA RÀO / MƯA BÃO
   if (weather === 'storm') {
-    candidates.push(
-      {
-        conditionTag: '⛈️ Khách nhận hàng giữa tâm bão ngập đường',
-        question: pickRandom([
-          'Trời ơi bão gió ngập nửa bánh xe thế này mà anh vẫn giao tới tận nơi cho em được! Áo mưa anh rách cả tà rồi kìa, đồ ăn có bị ướt không anh?',
-          'Mưa bão sấm chớp đùng đùng em tưởng App tự hủy đơn rồi chứ! Cảm ơn anh shipper dũng cảm quá, để em gửi thêm tiền tip cho anh uống trà gừng nha!'
-        ]),
-        options: [
-          {
-            text: '🙏 Dạ em bọc 3 lớp túi chống nước trong thùng giữ nhiệt nên đồ ăn vẫn khô ráo nóng hổi ạ!',
-            effect: () => {
-              const tip = pickRandom([10, 15, 20]);
-              return {
-                tip,
-                rating: 0.08,
-                reply: pickRandom([
-                  `Tuyệt vời quá! Em gửi tặng anh thêm ${formatVND(tip)} tiền tip bồi dưỡng vượt bão và đánh giá 5 sao liền đây!`,
-                  `Cảm động thiệt sự, đồ ăn vẫn còn nóng nguyên! Gửi anh thêm ${formatVND(tip)} tiền cà phê nhé, chạy về cẩn thận nha anh!`
-                ]),
-                log: `⛈️ <strong>Giao hàng vượt bão:</strong> Khách hàng cảm kích vì đồ ăn khô ráo giữa mưa bão, thưởng nóng <strong>+${formatVND(tip)} tiền tip</strong> & 5 ⭐!`
-              };
-            }
-          },
-          {
-            text: '🛵 Dạ đường ngập quá xe em suýt chết máy ở ngã tư, may mà vẫn kịp giao cho anh/chị!',
-            effect: () => {
-              const tip = pickRandom([10, 15]);
-              return {
-                tip,
-                energy: -3,
-                rating: 0.06,
-                reply: pickRandom([
-                  `Khổ thân anh quá, cầm lấy ${formatVND(tip)} tiền tip của em rồi tìm chỗ trú bão bớt mưa hẵng chạy tiếp anh ơi!`,
-                  `Trời mưa bão thế này ai cũng thông cảm hết, em biếu anh thêm ${formatVND(tip)} lau bugi xe nha!`
-                ]),
-                log: `🌧️ Khách hàng thấu hiểu nỗi vất vả chạy xe mùa mưa ngập, tặng thêm <strong>+${formatVND(tip)}</strong>.`
-              };
-            }
-          }
-        ]
-      }
-    );
-  } else if (weather === 'rain') {
-    candidates.push(
-      {
-        conditionTag: '🌧️ Khách nhận hàng lúc trời mưa rào trơn trượt',
-        question: pickRandom([
-          'Đang mưa rào bất chợt nên mình ngại ra đường mới đặt App. Cảm ơn bạn đội mưa giao đồ qua nha, tay bạn ướt lạnh hết rồi kìa!',
-          'Trời mưa đường trơn mà bạn chạy nhanh ghê! Mình đứng ở mái hiên đợi sẵn để bạn khỏi phải cởi áo mưa xuống xe nè!'
-        ]),
-        options: [
-          {
-            text: '😊 Dạ cảm ơn anh/chị tâm lý đứng đợi sẵn ở mái hiên giúp em đỡ ướt!',
-            effect: () => {
-              const tip = pickRandom([5, 10]);
-              return {
-                tip,
-                rating: 0.05,
-                reply: pickRandom([
-                  `Không có chi đâu, gửi bạn thêm ${formatVND(tip)} tiền lẻ uống nước ấm nhé! Đã chấm 5 sao trên App!`,
-                  `Mình cũng hay đi ngoài đường nên hiểu mà, tặng bạn thêm ${formatVND(tip)} tiền tip qua Ví nha!`
-                ]),
-                log: `🌧️ <strong>Tình người ngày mưa:</strong> Khách ra tận mái hiên nhận hàng và tip thêm <strong>+${formatVND(tip)}</strong>.`
-              };
-            }
-          },
-          {
-            text: '🙏 Dạ mưa rào kẹt đèn đỏ hơi lâu một chút, mong anh/chị thông cảm giúp em nhé',
-            effect: () => ({
-              tip: 5,
-              rating: 0.04,
-              reply: pickRandom([
-                'Trời mưa chạy an toàn là trên hết bạn ơi, mình không vội đâu! Gửi bạn 5.000đ tiền tip nha!',
-                'Mưa gió thế này tới nơi an toàn là mừng rồi, mình cho 5 sao liền nè!'
-              ]),
-              log: '🌧️ Khách hàng thông cảm vì trời mưa đường trơn, tặng +5.000đ tiền tip.'
-            })
-          }
-        ]
-      }
-    );
-  }
-
-  // 2. KỊCH BẢN THEO THỜI GIAN: CA ĐÊM KHUYA (22h - 02h)
-  if (isNight) {
-    candidates.push(
-      {
-        conditionTag: '🌙 Khách đặt đồ ăn đêm khuya (Sau 22h00)',
-        question: custKey === 'university'
-          ? pickRandom([
-              'Hơn 11h đêm rồi tụi mình đang thức cày đồ án môn Kinh tế chính trị đói meo! Cổng KTX khóa rồi, anh đưa túi đồ ăn qua khe cổng sắt giúp em với!',
-              'May quá đêm khuya vẫn có anh nhận đơn trà sữa cứu đói phòng KTX tụi em! Anh nói nhỏ kẻo bác bảo vệ KTX thức giấc nha!'
-            ])
-          : pickRandom([
-              'Khuya rồi mà anh vẫn còn chạy ngoài đường vất vả quá! Nhà em có em bé đang ngủ nên anh giao nhẹ tay ở cổng giúp em nhé!',
-              'Đêm hôm đặt đồ ăn khuya cứกลัว không có tài xế nhận. Cảm ơn anh giao tới nhanh nha, đường khuya vắng chạy cẩn thận nhé anh!'
-            ]),
-        options: [
-          {
-            text: '🤫 Dạ em tắt máy xe từ đầu ngõ và đưa nhẹ nhàng để không làm ồn mọi người nghỉ đêm ạ!',
-            effect: () => {
-              const tip = pickRandom([5, 10, 15]);
-              return {
-                tip,
-                rating: 0.06,
-                reply: pickRandom([
-                  `Anh tinh tế quá trời! Em gửi thêm ${formatVND(tip)} bồi dưỡng ca đêm vào Ví cho anh nhé!`,
-                  `Cảm ơn anh nhiều nha! Chúc anh chạy nốt ca đêm bình an, em vừa tip thêm ${formatVND(tip)} trên App đó!`
-                ]),
-                log: `🌙 <strong>Giao hàng ca đêm tinh tế:</strong> Tắt máy dắt bộ vào ngõ khuya, được khách thưởng thêm <strong>+${formatVND(tip)}</strong>!`
-              };
-            }
-          },
-          {
-            text: '🥱 Dạ chạy từ sáng tới khuya buồn ngủ ríu mắt mà ráng kiếm thêm tiền đóng trọ anh/chị ạ!',
-            effect: () => ({
-              tip: 10,
-              energy: 5,
-              rating: 0.05,
-              reply: pickRandom([
-                'Tội nghiệp anh ghê, cầm lấy lon cà phê sữa trong nhà em với 10.000đ tiền tip cho tỉnh táo chạy về nghỉ nha!',
-                'Cố lên anh ơi! Em gửi thêm 10.000đ tiền tip và đánh giá 5 sao đầy đủ cho anh rồi nhé!'
-              ]),
-              log: '🌙 Khách ca đêm tặng lon cà phê (+5% thể lực) và +10.000đ tiền tip động viên.'
-            })
-          }
-        ]
-      }
-    );
-  }
-
-  // 3. KỊCH BẢN THEO GIỜ CAO ĐIỂM HOẶC ĐƠN GHÉP
-  if (isRushHour || isBatched) {
     candidates.push({
-      conditionTag: isBatched ? '📦📦 Khách hỏi vì sao lộ trình vòng vèo (Đơn Ghép)' : '🔥 Khách chờ lâu vào Giờ Cao Điểm kẹt xe',
+      isToxic: false,
+      conditionTag: '⛈️ Khách nhận hàng giữa tâm bão ngập đường',
       question: pickRandom([
-        'Ủa anh ơi, sao nãy giờ em nhìn trên bản đồ GPS thấy anh rẽ qua đường khác đứng đợi lâu vậy mới tới chỗ em? Đồ ăn có bị nguội không anh?',
-        'Giờ nghỉ trưa công ty mình có 1 tiếng thôi mà đợi đơn hơi lâu đó nha! Đường kẹt xe hay do App ghép đơn vậy bạn?'
+        'Trời ơi bão gió ngập nửa bánh xe thế này mà anh vẫn giao tới tận nơi cho em được! Áo mưa anh rách cả tà rồi kìa, đồ ăn có bị ướt không anh?',
+        'Mưa bão sấm chớp đùng đùng em tưởng App tự hủy đơn rồi chứ! Cảm ơn anh shipper dũng cảm quá, để em gửi thêm tiền tip cho anh uống trà gừng nha!'
       ]),
       options: [
         {
-          text: '🙏 Dạ giờ cao điểm ngã tư đèn đỏ kẹt cứng với App ghép đơn, nhưng em giữ kỹ trong túi cách nhiệt nên vẫn nóng ạ!',
-          effect: () => ({
-            tip: Math.random() < 0.5 ? 5 : 0,
-            rating: 0.03,
-            reply: pickRandom([
-              'À ừ mở ra thấy vẫn còn nóng hổi thật! Thôi mình thông cảm cho shipper giờ cao điểm, vẫn chấm 5 sao nha!',
-              'Ra là do thuật toán App ghép đơn à, thôi không phải lỗi của bạn, mình nhận hàng và gửi thêm 5.000đ uống nước nhé!'
-            ]),
-            log: '🗣️ <strong>Lao động cảm xúc giờ cao điểm:</strong> Giải thích khéo léo giúp khách hiểu áp lực kẹt xe & đơn ghép của thuật toán.'
-          })
+          text: '🙏 Dạ em bọc 3 lớp túi chống nước trong thùng giữ nhiệt nên đồ ăn vẫn khô ráo nóng hổi ạ!',
+          effect: () => {
+            const tip = pickRandom([10, 15, 20]);
+            return {
+              tip,
+              rating: 0.08,
+              reply: `Tuyệt vời quá! Em gửi tặng anh thêm ${formatVND(tip)} tiền tip bồi dưỡng vượt bão và đánh giá 5 sao liền đây!`,
+              log: `⛈️ <strong>Giao hàng vượt bão:</strong> Khách hàng cảm kích vì đồ ăn khô ráo giữa mưa bão, thưởng nóng <strong>+${formatVND(tip)} tiền tip</strong> & 5 ⭐!`
+            };
+          }
         },
         {
-          text: '😓 Dạ quán làm món lâu quá chứ em lấy xong là phóng hết ga trên đường tới liền đó ạ!',
-          effect: () => (Math.random() < 0.3
-            ? {
-                rating: -0.05,
-                reply: 'Biết là quán đông nhưng chờ lâu mình bị trễ giờ họp chiều rồi... Thôi đưa mình lẹ nha.',
-                log: '⚠️ Khách bực dọc vì chờ lâu giờ cao điểm: dù lỗi do quán đông và kẹt xe nhưng tài xế bị giảm -0.05 ⭐.'
-              }
-            : {
-                rating: 0.02,
-                reply: 'Ừ giờ ăn trưa quán nào cũng quá tải hết, cảm ơn bạn đã cố gắng giao nhanh nhé!',
-                log: '✅ Khách thông cảm cho tình trạng quá tải giờ cao điểm.'
-              })
+          text: '🛵 Dạ đường ngập quá xe em suýt chết máy ở ngã tư, may mà vẫn kịp giao cho anh/chị!',
+          effect: () => {
+            const tip = pickRandom([10, 15]);
+            return {
+              tip,
+              energy: -3,
+              rating: 0.06,
+              reply: `Khổ thân anh quá, cầm lấy ${formatVND(tip)} tiền tip của em rồi tìm chỗ trú bão bớt mưa hẵng chạy tiếp anh ơi!`,
+              log: `🌧️ Khách hàng thấu hiểu nỗi vất vả chạy xe mùa mưa ngập, tặng thêm <strong>+${formatVND(tip)}</strong>.`
+            };
+          }
+        }
+      ]
+    });
+  } else if (weather === 'rain') {
+    candidates.push({
+      isToxic: false,
+      conditionTag: '🌧️ Khách nhận hàng lúc trời mưa rào trơn trượt',
+      question: pickRandom([
+        'Đang mưa rào bất chợt nên mình ngại ra đường mới đặt App. Cảm ơn bạn đội mưa giao đồ qua nha, tay bạn ướt lạnh hết rồi kìa!',
+        'Trời mưa đường trơn mà bạn chạy nhanh ghê! Mình đứng ở mái hiên đợi sẵn để bạn khỏi phải cởi áo mưa xuống xe nè!'
+      ]),
+      options: [
+        {
+          text: '😊 Dạ cảm ơn anh/chị tâm lý đứng đợi sẵn ở mái hiên giúp em đỡ ướt!',
+          effect: () => {
+            const tip = pickRandom([5, 10]);
+            return {
+              tip,
+              rating: 0.05,
+              reply: `Không có chi đâu, gửi bạn thêm ${formatVND(tip)} tiền lẻ uống nước ấm nhé! Đã chấm 5 sao trên App!`,
+              log: `🌧️ <strong>Tình người ngày mưa:</strong> Khách ra tận mái hiên nhận hàng và tip thêm <strong>+${formatVND(tip)}</strong>.`
+            };
+          }
+        },
+        {
+          text: '🙏 Dạ mưa rào kẹt đèn đỏ hơi lâu một chút, mong anh/chị thông cảm giúp em nhé',
+          effect: () => ({
+            tip: 5,
+            rating: 0.04,
+            reply: 'Trời mưa chạy an toàn là trên hết bạn ơi, mình không vội đâu! Gửi bạn 5.000đ tiền tip nha!',
+            log: '🌧️ Khách hàng thông cảm vì trời mưa đường trơn, tặng +5.000đ tiền tip.'
+          })
         }
       ]
     });
   }
 
-  // 4. KỊCH BẢN ĐẶC TRƯNG THEO TỪNG ĐỊA ĐIỂM (KTX ĐẠI HỌC, BỆNH VIỆN, NHÀ PHỐ HẺM, CHUNG CƯ)
+  if (isNight) {
+    candidates.push({
+      isToxic: false,
+      conditionTag: '🌙 Khách đặt đồ ăn đêm khuya (Sau 22h00)',
+      question: custKey === 'university'
+        ? 'Hơn 11h đêm rồi tụi mình đang thức cày đồ án môn Kinh tế chính trị đói meo! Cổng KTX khóa rồi, anh đưa túi đồ ăn qua khe cổng sắt giúp em với!'
+        : 'Khuya rồi mà anh vẫn còn chạy ngoài đường vất vả quá! Nhà em có em bé đang ngủ nên anh giao nhẹ tay ở cổng giúp em nhé!',
+      options: [
+        {
+          text: '🤫 Dạ em tắt máy xe từ đầu ngõ và đưa nhẹ nhàng để không làm ồn mọi người nghỉ đêm ạ!',
+          effect: () => {
+            const tip = pickRandom([5, 10, 15]);
+            return {
+              tip,
+              rating: 0.06,
+              reply: `Anh tinh tế quá trời! Em gửi thêm ${formatVND(tip)} bồi dưỡng ca đêm vào Ví cho anh nhé!`,
+              log: `🌙 <strong>Giao hàng ca đêm tinh tế:</strong> Tắt máy dắt bộ vào ngõ khuya, được khách thưởng thêm <strong>+${formatVND(tip)}</strong>!`
+            };
+          }
+        },
+        {
+          text: '🥱 Dạ chạy từ sáng tới khuya buồn ngủ ríu mắt mà ráng kiếm thêm tiền đóng trọ anh/chị ạ!',
+          effect: () => ({
+            tip: 10,
+            energy: 5,
+            rating: 0.05,
+            reply: 'Tội nghiệp anh ghê, cầm lấy lon cà phê sữa trong nhà em với 10.000đ tiền tip cho tỉnh táo chạy về nghỉ nha!',
+            log: '🌙 Khách ca đêm tặng lon cà phê (+5% thể lực) và +10.000đ tiền tip động viên.'
+          })
+        }
+      ]
+    });
+  }
+
+  if (isRushHour || isBatched) {
+    candidates.push({
+      isToxic: false,
+      conditionTag: isBatched ? '📦📦 Khách hỏi vì sao lộ trình vòng vèo (Đơn Ghép)' : '🔥 Khách chờ lâu vào Giờ Cao Điểm kẹt xe',
+      question: 'Ủa anh ơi, sao nãy giờ em nhìn trên bản đồ GPS thấy anh rẽ qua đường khác đứng đợi lâu vậy mới tới chỗ em? Đồ ăn có bị nguội không anh?',
+      options: [
+        {
+          text: '🙏 Dạ giờ cao điểm ngã tư đèn đỏ kẹt cứng với App ghép đơn, nhưng em giữ kỹ trong túi cách nhiệt nên vẫn nóng ạ!',
+          effect: () => ({
+            tip: 5,
+            rating: 0.03,
+            reply: 'À ừ mở ra thấy vẫn còn nóng hổi thật! Thôi mình thông cảm cho shipper giờ cao điểm, gửi bạn 5.000đ uống nước nhé!',
+            log: '🗣️ <strong>Lao động cảm xúc giờ cao điểm:</strong> Giải thích khéo léo giúp khách hiểu áp lực kẹt xe & đơn ghép.'
+          })
+        },
+        {
+          text: '😓 Dạ quán làm món lâu quá chứ em lấy xong là phóng hết ga trên đường tới liền đó ạ!',
+          effect: () => ({
+            rating: 0.02,
+            reply: 'Ừ giờ ăn trưa quán nào cũng quá tải hết, cảm ơn bạn đã cố gắng giao nhanh nhé!',
+            log: '✅ Khách thông cảm cho tình trạng quá tải giờ cao điểm.'
+          })
+        }
+      ]
+    });
+  }
+
   if (custKey === 'university') {
     candidates.push({
+      isToxic: false,
       conditionTag: '🏫 Giao hàng tại Cổng Ký Túc Xá Đại Học (Khu 1)',
-      question: pickRandom([
-        'Em chào anh shipper! Tụi em vừa tan ca học ở giảng đường chạy ù ra cổng KTX nhận đơn nè, tiền lẻ tụi em góp sẵn đủ 100% luôn rồi ạ!',
-        'Anh ơi đơn trà sữa này phòng tụi em góp tiền đặt chung, anh chờ 30 giây bạn em chạy xuống lấy liền nha, nắng quá mời anh đứng vào bóng cây cổng trường ạ!'
-      ]),
+      question: 'Em chào anh shipper! Tụi em vừa tan ca học ở giảng đường chạy ù ra cổng KTX nhận đơn nè, tiền lẻ tụi em góp sẵn đủ 100% luôn rồi ạ!',
       options: [
         {
           text: '🎓 Cảm ơn các bạn sinh viên dễ thương nha, chúc các em học tốt thi đạt điểm A+ nhé!',
           effect: () => ({
             tip: 5,
             rating: 0.06,
-            reply: pickRandom([
-              'Dạ tụi em cảm ơn lời chúc của anh! Tụi em gửi dư thêm 5.000đ mời anh ly trà đá và thả 5 sao tim đỏ trên App nha!',
-              'Anh shipper vui tính ghê! Phòng em chấm 5 sao full điểm dịch vụ cho anh liền!'
-            ]),
+            reply: 'Dạ tụi em cảm ơn lời chúc của anh! Tụi em gửi dư thêm 5.000đ mời anh ly trà đá và thả 5 sao tim đỏ trên App nha!',
             log: '🧑‍🎓 Giao đơn tại KTX Đại Học: Sinh viên thân thiện, tặng +5.000đ uống trà đá và đánh giá 5 ⭐.'
           })
         },
@@ -389,21 +491,16 @@ const getDynamicCustomerDialog = (g, custKey) => {
     });
   } else if (custKey === 'hospital') {
     candidates.push({
+      isToxic: false,
       conditionTag: '🏥 Giao đồ ăn dinh dưỡng tại Cổng Bệnh Viện Đa Khoa (Khu 5)',
-      question: pickRandom([
-        'Cảm ơn bạn giao cháo nóng tới kịp giờ cho người nhà mình uống thuốc nhé! Cổng bệnh viện đông xe cứu thương, bạn đỗ xe ở vịnh [P] có vất vả không?',
-        'Mình đang trực ca cấp cứu không rời khoa lâu được, may mà bạn chạy đúng làn đường tới điểm hẹn cổng viện đúng giờ!'
-      ]),
+      question: 'Cảm ơn bạn giao cháo nóng tới kịp giờ cho người nhà mình uống thuốc nhé! Cổng bệnh viện đông xe cứu thương, bạn đỗ xe ở vịnh [P] có vất vả không?',
       options: [
         {
           text: '💖 Dạ không vất vả gì đâu ạ, chúc người nhà mình mau khỏe / chúc bác sĩ ca trực thuận lợi nhé!',
           effect: () => ({
             tip: 10,
             rating: 0.07,
-            reply: pickRandom([
-              'Cảm ơn lời chúc ấm áp của bạn! Mình gửi thêm 10.000đ tiền tip cảm ơn tấm lòng của bạn nhé!',
-              'Nghe bạn chúc mà ấm lòng quá, gửi bạn thêm 10.000đ uống nước cam giữ sức khỏe chạy xe nha!'
-            ]),
+            reply: 'Cảm ơn lời chúc ấm áp của bạn! Mình gửi thêm 10.000đ tiền tip cảm ơn tấm lòng của bạn nhé!',
             log: '🏥 <strong>Giao đơn tại Bệnh Viện:</strong> Lời chúc ấm áp giúp người bệnh/bác sĩ vui lòng, nhận <strong>+10.000đ tip</strong> & +0.07 ⭐.'
           })
         },
@@ -420,26 +517,18 @@ const getDynamicCustomerDialog = (g, custKey) => {
     });
   } else if (custKey === 'customerB') {
     candidates.push({
+      isToxic: false,
       conditionTag: '🏢 Giao hàng tại Sảnh Chung Cư Cao Cấp B (Khu 5)',
-      question: pickRandom([
-        'Mình đang họp online trên tầng 18 chung cư, bạn đặt đồ ăn lên kệ lễ tân sảnh G rồi chụp ảnh gửi qua App giúp mình nhé! Phụ phí chung cư mình trả đủ trên App rồi đó!',
-        'Chào bạn, chung cư mình bảo vệ kiểm soát lối vào hơi kỹ, cảm ơn bạn đã đỗ đúng vịnh [P] trước sảnh chờ mình xuống lấy nha!'
-      ]),
+      question: 'Mình đang họp online trên tầng 18 chung cư, bạn đặt đồ ăn lên kệ lễ tân sảnh G rồi chụp ảnh gửi qua App giúp mình nhé!',
       options: [
         {
           text: '📸 Đặt ngay ngắn tại kệ Sảnh G, ghi chú số phòng & chụp ảnh báo khách qua App',
-          effect: () => {
-            const tip = pickRandom([5, 10]);
-            return {
-              tip,
-              rating: 0.05,
-              reply: pickRandom([
-                `Đã thấy ảnh xác nhận rõ nét trên App! Mình bấm tip thêm ${formatVND(tip)} vào Ví cho bạn luôn rồi nhé!`,
-                `Chuyên nghiệp quá, cảm ơn bạn! Mình gửi tặng thêm ${formatVND(tip)} tiền gửi xe & uống nước nha!`
-              ]),
-              log: `🏢 Giao đơn Chung cư cao cấp: Quy trình chuyên nghiệp, khách tip qua App <strong>+${formatVND(tip)}</strong>.`
-            };
-          }
+          effect: () => ({
+            tip: 10,
+            rating: 0.05,
+            reply: 'Đã thấy ảnh xác nhận rõ nét trên App! Mình bấm tip thêm 10.000đ vào Ví cho bạn luôn rồi nhé!',
+            log: '🏢 Giao đơn Chung cư cao cấp: Quy trình chuyên nghiệp, khách tip qua App <strong>+10.000đ</strong>.'
+          })
         },
         {
           text: '🤝 Gửi trực tiếp tận tay khách vừa xuống sảnh bằng hai tay lịch sự',
@@ -453,23 +542,17 @@ const getDynamicCustomerDialog = (g, custKey) => {
       ]
     });
   } else {
-    // customerA - Nhà phố hẻm dân cư
     candidates.push({
+      isToxic: false,
       conditionTag: '🏠 Giao hàng tận cửa Nhà Phố Khu Dân Cư (Khu 4)',
-      question: pickRandom([
-        'Trời nắng gắt quá mà em tìm địa chỉ nhà chị nhanh ghê! Tiền đơn chị trả đủ đây, gửi em thêm 5.000đ tiền lẻ uống nước mía đầu ngõ nhé!',
-        'Cảm ơn chú shipper nghen, nhà cô ở trong khu dân cư này nhiều số nhà xẹt quá mà chú chạy đúng đường tới tận cổng luôn!'
-      ]),
+      question: 'Trời nắng gắt quá mà em tìm địa chỉ nhà chị nhanh ghê! Tiền đơn chị trả đủ đây, gửi em thêm 5.000đ tiền lẻ uống nước mía đầu ngõ nhé!',
       options: [
         {
-          text: '🙏 Dạ em cảm ơn chị/cô nhiều ạ! Tiền tip 5.000đ bằng nửa tiền lời cuốc xe rồi!',
+          text: '🙏 Dạ em cảm ơn chị nhiều ạ! Tiền tip 5.000đ bằng nửa tiền lời cuốc xe rồi!',
           effect: () => ({
             tip: 5,
             rating: 0.05,
-            reply: pickRandom([
-              'Chị vừa bấm 5 sao trên App cho em luôn rồi đó, chạy xe ngoài nắng nhớ giữ sức khỏe nha!',
-              'Thương mấy đứa chạy ship nắng nôi cực khổ, cầm lấy uống ly nước mát rồi chạy tiếp nghen con!'
-            ]),
+            reply: 'Chị vừa bấm 5 sao trên App cho em luôn rồi đó, chạy xe ngoài nắng nhớ giữ sức khỏe nha!',
             log: '💵 <strong>Khách nhà phố tip +5.000đ:</strong> Khoản tiền thưởng trực tiếp vào Ví không bị sàn cắt 27.2%!'
           })
         },
@@ -493,7 +576,7 @@ const getDynamicCustomerDialog = (g, custKey) => {
 const ZONE_ROLES_INFO = [
   { id: 'zone1', title: 'Khu 1: Phố Ẩm Thực & ĐH', role: '👩‍🍳 Chủ Quán & 🧑‍🎓 KTX (+0đ)', desc: 'Lấy Cơm tấm/Phở (ứng COD 45k-65k), giao đơn KTX Sinh viên (cước ưu đãi).', targetKey: 'restaurant', color: '#f59e0b' },
   { id: 'zone2', title: 'Khu 2: Ăn Vặt & Trạm Xăng', role: '⛽ Xăng RON95 & Nhớt Xe', desc: 'Đổ xăng RON 95 (23.500đ/L) & thay nhớt/bảo dưỡng xe (trung bình ~1.250đ/km).', targetKey: 'gasStation', color: '#ec4899' },
-  { id: 'zone3', title: 'Khu 3: Trà Đá, CSGT & Công Đoàn', role: '☕ Trà Đá 0đ • 🚨 CSGT • 🤝 Hội Quán', desc: 'Uống trà đá miễn phí, coi chừng CSGT phạt vượt đèn (150k), Hội Quán hồi 5⭐.', targetKey: 'unionHub', color: '#10b981' },
+  { id: 'zone3', title: 'Khu 3: Trà Đá, CSGT & Công Đoàn', role: '☕ Trà Đá 0đ • 🚨 CSGT • 🤝 Hội Quán', desc: 'Uống trà đá miễn phí, coi chừng CSGT phạt vượt đèn (150k), Hội Quán xóa án 1⭐.', targetKey: 'unionHub', color: '#10b981' },
   { id: 'zone4', title: 'Khu 4: Công Viên & Dân Cư', role: '🏪 Bò Húc 12k & 🙋‍♀️ Hẻm (+2k)', desc: 'Ghé Tiện Lợi 24h mua Bò Húc (-12.000đ) hồi nhanh thể lực, giao đơn hẻm (+2.000đ).', targetKey: 'customerA', color: '#22c55e' },
   { id: 'zone5', title: 'Khu 5: Đô Thị Công Nghệ Cao', role: '🏢 Sàn AI • 🏥 Viện (+3.5k) • Chung Cư (+4.5k)', desc: 'Trụ sở Sàn thu 27.2%, phụ phí giao xa Bệnh Viện (+3.5k) & Chung Cư B (+4.5k).', targetKey: 'platformHQ', color: '#8b5cf6' }
 ];
@@ -513,6 +596,7 @@ export default function GigEconomy2D() {
   const [unpaidWearCost, setUnpaidWearCost] = useState(0);
   const [totalKmDriven, setTotalKmDriven] = useState(0);
   const [completedOrders, setCompletedOrders] = useState(0);
+  const [oneStarCount, setOneStarCount] = useState(0); // Số lần bị khách oái oăm đánh 1 sao
   const [rating, setRating] = useState(4.95);
   const [acceptanceRate, setAcceptanceRate] = useState(96);
   const [tier] = useState('Vàng');
@@ -526,7 +610,7 @@ export default function GigEconomy2D() {
   const [algoLevel, setAlgoLevel] = useState(1);
   const [droneCount, setDroneCount] = useState(0);
 
-  // --- TRẠNG THÁI ĐƠN HÀNG HIỆN TẠI (CÓ PHỤ PHÍ THỜI TIẾT, THỜI GIAN, ĐỊA ĐIỂM) ---
+  // --- TRẠNG THÁI ĐƠN HÀNG HIỆN TẠI ---
   const [currentOrder, setCurrentOrder] = useState({
     name: '🍛 Cơm Tấm Sườn Bì Chả Trứng',
     distance: 2.8,
@@ -550,7 +634,7 @@ export default function GigEconomy2D() {
   const [isStrike, setIsStrike] = useState(false);
   const [isNight, setIsNight] = useState(false);
   const [isRushHour, setIsRushHour] = useState(false);
-  const [weather, setWeather] = useState('clear'); // 'clear' | 'rain' | 'storm'
+  const [weather, setWeather] = useState('clear');
   const [autoDispatch, setAutoDispatch] = useState(false);
 
   const [hasFood, setHasFood] = useState(false);
@@ -560,8 +644,8 @@ export default function GigEconomy2D() {
   const [activeZoneTab, setActiveZoneTab] = useState(null);
 
   const [logList, setLogList] = useState([
-    '🌦️ <strong>GIÁ ĐƠN & HỘI THOẠI THEO THỜI TIẾT • THỜI GIAN • ĐỊA ĐIỂM:</strong> Cước đơn tự động cộng phụ phí khi Mưa rào (+5k), Mưa bão (+12k), Giờ cao điểm (+4k), Ca đêm (+7k) và Khu vực xa (+2k đến +4.5k)!',
-    '🗣️ Khi giao hàng tới nơi, <strong>Người nhận hàng sẽ hỏi thăm & phản hồi ngẫu nhiên</strong> khớp với trời mưa/nắng, đêm khuya/cao điểm và địa điểm nhận (KTX, Bệnh viện, Chung cư, Nhà hẻm).'
+    '💢 <strong>CƠ CHẾ KHÁCH OÁI OĂM & CÃI LỘN 1 SAO:</strong> Cứ chạy <strong>2 hoặc 3 đơn</strong> bạn sẽ đụng độ 1 vị "Thượng đế" hạch sách (ép leo 18 tầng chung cư, gọi 10 cuộc không nghe còn mắng ngược, bắt đền lỗi của quán, đánh giá 1 sao)!',
+    '🤝 Nếu bị tụt sao oan vì cãi nhau với khách oái oăm, hãy lái xe ghé <strong>Hội Quán Shipper (Khu 3)</strong> để Công đoàn kháng cáo khôi phục 5.0 ⭐!'
   ]);
 
   const displayOrder = incomingOrder || currentOrder;
@@ -581,6 +665,9 @@ export default function GigEconomy2D() {
     unpaidWearCost: 0,
     totalKmDriven: 0,
     completedOrders: 0,
+    oneStarCount: 0,
+    ordersSinceDrama: 1,      // Khởi tạo = 1 để đơn thứ 2 người chơi chạy thử sẽ gặp ngay Khách Oái Oăm!
+    nextDramaThreshold: 2,    // Ngẫu nhiên 2 hoặc 3 đơn gặp 1 khách oái oăm
     rating: 4.95,
     acceptanceRate: 96,
     bikeHealth: 100,
@@ -614,6 +701,7 @@ export default function GigEconomy2D() {
       unpaidWearCost,
       totalKmDriven,
       completedOrders,
+      oneStarCount,
       rating,
       acceptanceRate,
       bikeHealth,
@@ -635,7 +723,7 @@ export default function GigEconomy2D() {
       targetDrain: gameRef.current.targetDrain || 8,
       hasFood
     };
-  }, [appOnline, walletDeposit, energy, driverWage, driverCost, unpaidWearCost, totalKmDriven, completedOrders, rating, acceptanceRate, bikeHealth, platformCutRate, surplusM, algoSpeed, algoLevel, currentOrder, gasCrisis, weather, isNight, isRushHour, autoDispatch, isStrike, isBatchedOrder, missionState, hasFood]);
+  }, [appOnline, walletDeposit, energy, driverWage, driverCost, unpaidWearCost, totalKmDriven, completedOrders, oneStarCount, rating, acceptanceRate, bikeHealth, platformCutRate, surplusM, algoSpeed, algoLevel, currentOrder, gasCrisis, weather, isNight, isRushHour, autoDispatch, isStrike, isBatchedOrder, missionState, hasFood]);
 
   const addLog = (msg) => {
     setLogList(prev => [msg, ...prev.slice(0, 5)]);
@@ -654,7 +742,6 @@ export default function GigEconomy2D() {
     customerB: 'Chung Cư Khách B (Khu 5 Nam)'
   };
 
-  // --- TÍNH GIÁ ĐƠN HÀNG ĐỘNG THEO THỜI TIẾT + THỜI GIAN + ĐỊA ĐIỂM ---
   const generateRandomOrder = (forcedNight = false, isBatched = false) => {
     const template = RANDOM_ORDER_TYPES[Math.floor(Math.random() * RANDOM_ORDER_TYPES.length)];
     const distNoise = +(Math.random() * 1.2 - 0.5).toFixed(1);
@@ -664,37 +751,32 @@ export default function GigEconomy2D() {
     const shopKey = template.shopKey;
     const custKey = isBatched ? 'customerB' : template.custKeys[Math.floor(Math.random() * template.custKeys.length)];
 
-    // 1. Cước gốc theo cự ly km (2km đầu 15.000đ + 4.200đ/km tiếp theo)
     let baseKmFee = 15.0 + Math.max(0, finalDist - 2.0) * 4.2;
     if (isBatched) {
       baseKmFee = 15.0 + Math.max(0, baseDist - 2.0) * 4.2 + 6.5;
     }
     baseKmFee = +(Math.round(baseKmFee * 2) / 2).toFixed(1);
 
-    // 2. Phụ phí Thời Tiết (Weather Surge)
     const wState = gameRef.current.weather;
     let weatherSurge = 0;
-    if (wState === 'rain') weatherSurge = 5.0;   // Mưa rào: +5.000đ
-    if (wState === 'storm') weatherSurge = 12.0; // Mưa bão ngập nước: +12.000đ
+    if (wState === 'rain') weatherSurge = 5.0;
+    if (wState === 'storm') weatherSurge = 12.0;
 
-    // 3. Phụ phí Thời Gian (Time Surge: Ca đêm hoặc Giờ cao điểm)
     const nightActive = forcedNight || gameRef.current.isNight;
     const rushActive = gameRef.current.isRushHour;
     let timeSurge = 0;
-    if (nightActive) timeSurge += 7.0; // Ca đêm khuya: +7.000đ
-    if (rushActive) timeSurge += 4.0;  // Giờ cao điểm trưa/tối: +4.000đ
+    if (nightActive) timeSurge += 7.0;
+    if (rushActive) timeSurge += 4.0;
 
-    // 4. Phụ phí Địa Điểm Giao Hàng (Location Surge)
     const locInfo = LOCATION_SURGE[custKey] || { fee: 0, tag: 'Tiêu chuẩn (+0đ)' };
     const locationSurge = locInfo.fee;
 
     const totalShippingFee = +(baseKmFee + weatherSurge + timeSurge + locationSurge).toFixed(1);
 
-    // 5. Chi phí xăng RON95 + nhớt + khấu hao xe (tăng thêm khi mưa bão hoặc kẹt xe giờ cao điểm)
     const realKmDriven = finalDist + 0.8;
     let costPerKm = 1.25;
     if (gameRef.current.gasCrisis) costPerKm += 0.5;
-    if (wState === 'storm' || rushActive) costPerKm += 0.25; // Ngập nước/kẹt xe tốn xăng hơn
+    if (wState === 'storm' || rushActive) costPerKm += 0.25;
     const vehicleCost = +(realKmDriven * costPerKm).toFixed(1);
 
     return {
@@ -750,6 +832,15 @@ export default function GigEconomy2D() {
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
         osc.start(now);
         osc.stop(now + 0.35);
+      } else if (type === 'drama') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(310, now);
+        osc.frequency.setValueAtTime(185, now + 0.15);
+        osc.frequency.setValueAtTime(140, now + 0.3);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
       } else if (type === 'strike') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(220, now);
@@ -802,7 +893,7 @@ export default function GigEconomy2D() {
 
       university:   { x: 25,  y: 445, w: 120, h: 75, parkX: 85,  parkY: 405, aveY: 365, emoji: '🏫', label: 'Đại Học & KTX', color: '#3b82f6', sub: '🧑‍🎓 Sinh Viên (+0đ)' },
       pizzaShop:    { x: 220, y: 445, w: 115, h: 75, parkX: 277, parkY: 405, aveY: 365, emoji: '🍕', label: 'Pizza & Gà Rán', color: '#f97316', sub: '👨‍🍳 Ứng COD 95-185k' },
-      unionHub:     { x: 410, y: 445, w: 115, h: 75, parkX: 467, parkY: 405, aveY: 365, emoji: '🤝', label: 'Hội Quán Shipper', color: '#10b981', sub: 'Công Đoàn hồi 5.0⭐' },
+      unionHub:     { x: 410, y: 445, w: 115, h: 75, parkX: 467, parkY: 405, aveY: 365, emoji: '🤝', label: 'Hội Quán Shipper', color: '#10b981', sub: 'Xóa án 1⭐ hồi 5.0⭐' },
       customerA:    { x: 600, y: 445, w: 115, h: 75, parkX: 657, parkY: 405, aveY: 365, emoji: '🏠', label: 'Nhà Khách Hàng A', color: '#06b6d4', sub: '🙋‍♀️ Hẻm (+2.000đ)' },
       customerB:    { x: 790, y: 445, w: 125, h: 75, parkX: 852, parkY: 405, aveY: 365, emoji: '🏢', label: 'Chung Cư Khách B', color: '#8b5cf6', sub: '🧑‍💼 Xa (+4.500đ)' }
     };
@@ -1013,7 +1104,7 @@ export default function GigEconomy2D() {
     };
     canvas.addEventListener('click', onCanvasClick);
 
-    // --- BƯỚC 0: NỔ ĐƠN NGẪU NHIÊN TRÊN APP (TÍNH PHỤ PHÍ THỜI TIẾT, THỜI GIAN, ĐỊA ĐIỂM) ---
+    // --- BƯỚC 0: NỔ ĐƠN NGẪU NHIÊN TRÊN APP ---
     window.__ringOrder = (isNightShift = false, forcedShopKey = null) => {
       if (gameRef.current.isStrike) {
         addLog('✊ Tài xế đang đình công tắt app! Nền tảng bị tê liệt hoàn toàn.');
@@ -1158,7 +1249,7 @@ export default function GigEconomy2D() {
       }, 1100);
     };
 
-    // --- BƯỚC 3: TỚI ĐIỂM ĐỖ NHÀ KHÁCH -> KHÁCH HỎI & TRẢ LỜI THEO THỜI TIẾT / THỜI GIAN / ĐỊA ĐIỂM ---
+    // --- BƯỚC 3: TỚI ĐIỂM ĐỖ NHÀ KHÁCH -> CỨ 2 HOẶC 3 ĐƠN SẼ GẶP 1 KHÁCH OÁI OĂM CÃI LỘN 1 SAO ---
     const openCustomerDialog = () => {
       if (gameRef.current.missionState !== 'to_customer') return;
       bike.waypoints = [];
@@ -1166,25 +1257,42 @@ export default function GigEconomy2D() {
       setMissionState('at_customer');
       const custSpot = gameRef.current.targetCustomer || map.customerA;
       const custKey = Object.keys(map).find(k => map[k] === custSpot) || 'customerA';
-      const npc = CUSTOMER_NPCS[custKey] || CUSTOMER_NPCS.customerA;
-      const dlg = getDynamicCustomerDialog(gameRef.current, custKey);
+
+      // Kiểm tra bộ đếm: Cứ 2 hoặc 3 đơn (ordersSinceDrama >= nextDramaThreshold) thì nổ sự kiện Khách Oái Oăm!
+      gameRef.current.ordersSinceDrama = (gameRef.current.ordersSinceDrama || 0) + 1;
+      const isToxicTurn = gameRef.current.ordersSinceDrama >= (gameRef.current.nextDramaThreshold || 2);
+
+      let npc;
+      let dlg;
+      if (isToxicTurn) {
+        gameRef.current.ordersSinceDrama = 0;
+        gameRef.current.nextDramaThreshold = Math.random() < 0.55 ? 2 : 3; // Random 2 hoặc 3 đơn tiếp theo lại gặp!
+        npc = TOXIC_CUSTOMER_NPCS[custKey] || TOXIC_CUSTOMER_NPCS.customerA;
+        dlg = getToxicCustomerDialog(gameRef.current, custKey);
+        playSound('drama');
+      } else {
+        npc = CUSTOMER_NPCS[custKey] || CUSTOMER_NPCS.customerA;
+        dlg = getDynamicCustomerDialog(gameRef.current, custKey);
+        playSound('heal');
+      }
+
       setCustomerDialog({
         npc,
+        isToxic: !!dlg.isToxic,
         custLabel: custSpot.label,
         conditionTag: dlg.conditionTag,
         question: dlg.question,
         options: dlg.options,
         reply: null
       });
-      playSound('heal');
 
       clearTimeout(gameRef.current.custTimer);
       if (gameRef.current.autoDispatch) {
-        gameRef.current.custTimer = setTimeout(() => window.__resolveCustomerDialog(dlg.options[0]), 2600);
+        gameRef.current.custTimer = setTimeout(() => window.__resolveCustomerDialog(dlg.options[0]), 2800);
       }
     };
 
-    const completeOrderPayout = (tipBonus = 0) => {
+    const completeOrderPayout = (tipBonus = 0, wagePenalty = 0) => {
       gameRef.current.missionState = 'idle';
       setMissionState('idle');
       bike.hasFood = false;
@@ -1193,12 +1301,12 @@ export default function GigEconomy2D() {
       const ord = gameRef.current.currentOrder;
       const finalPrice = gameRef.current.targetPrice;
       const m = +(finalPrice * gameRef.current.platformCutRate).toFixed(1);
-      const driverGross = +(finalPrice - m + tipBonus).toFixed(1);
+      const driverGross = +(finalPrice - m + tipBonus - wagePenalty).toFixed(1);
       const tripWearCost = gameRef.current.targetCost;
       const realNetProfit = +(driverGross - tripWearCost).toFixed(1);
 
       const nextEnergy = Math.max(0, gameRef.current.energy - gameRef.current.targetDrain);
-      const nextWage = +(gameRef.current.driverWage + driverGross).toFixed(1);
+      const nextWage = Math.max(0, +(gameRef.current.driverWage + driverGross).toFixed(1));
       const nextUnpaidWear = +(gameRef.current.unpaidWearCost + tripWearCost).toFixed(1);
       const nextKm = +(gameRef.current.totalKmDriven + (ord.realKm || ord.distance + 0.8)).toFixed(1);
       const nextSurplus = +(gameRef.current.surplusM + m).toFixed(1);
@@ -1226,24 +1334,31 @@ export default function GigEconomy2D() {
       setQuestOrders(q => {
         const n = q + (gameRef.current.isBatchedOrder ? 2 : 1);
         if (n >= 10) {
-          if (gameRef.current.acceptanceRate >= 85 && Math.random() < 0.7) {
+          if (gameRef.current.acceptanceRate >= 85 && gameRef.current.rating >= 4.7 && Math.random() < 0.7) {
             addLog('🎉 <strong>Đạt mốc 10 đơn/ngày:</strong> Nhận thưởng điểm chuyên cần <strong>+50.000đ</strong> vào Ví!');
             setDriverWage(w => +(w + 50).toFixed(1));
           } else {
-            addLog('⚠️ <strong>Mất thưởng mốc 10 đơn (50.000đ):</strong> Do tỷ lệ nhận đơn thấp hoặc hệ thống ngưng nổ đơn sát giờ chốt ca!');
+            addLog('⚠️ <strong>Mất thưởng mốc 10 đơn (50.000đ):</strong> Do bị khách đánh 1 sao làm điểm uy tín dưới 4.7⭐ hoặc tỷ lệ nhận đơn thấp!');
           }
           return 0;
         }
         return n;
       });
 
-      spawnDeliveryCash(bike.x, bike.y, finalPrice, tipBonus);
-      addLog(
-        `💰 <strong>Xong cuốc ${ord.distance}km:</strong> Cước <strong>${formatVND(finalPrice)}</strong> ` +
-        `| Sàn thu 27.2%: <strong style="color:#a78bfa">-${formatVND(m)}</strong> ` +
-        `| Ví cộng: <strong style="color:#34d399">+${formatVND(driverGross)}</strong>${tipBonus > 0 ? ` (gồm tip ${formatVND(tipBonus)})` : ''} ` +
-        `| Trừ xăng & hao mòn xe (~${formatVND(tripWearCost)}) → <strong>Thực lời ròng ${formatVND(realNetProfit)}!</strong>`
-      );
+      spawnDeliveryCash(bike.x, bike.y, finalPrice, tipBonus - wagePenalty);
+      if (wagePenalty > 0) {
+        addLog(
+          `💢 <strong>Cuốc xe đụng khách oái oăm (${ord.distance}km):</strong> Cước ${formatVND(finalPrice)} nhưng bị phạt/đền bù <strong>-${formatVND(wagePenalty)}</strong> ` +
+          `| Cộng thêm xăng xe (~${formatVND(tripWearCost)}) → <strong>Cuốc này thực nhận chỉ ${formatVND(realNetProfit)}!</strong>`
+        );
+      } else {
+        addLog(
+          `💰 <strong>Xong cuốc ${ord.distance}km:</strong> Cước <strong>${formatVND(finalPrice)}</strong> ` +
+          `| Sàn thu 27.2%: <strong style="color:#a78bfa">-${formatVND(m)}</strong> ` +
+          `| Ví cộng: <strong style="color:#34d399">+${formatVND(driverGross)}</strong>${tipBonus > 0 ? ` (gồm tip ${formatVND(tipBonus)})` : ''} ` +
+          `| Trừ xăng & hao mòn xe (~${formatVND(tripWearCost)}) → <strong>Thực lời ròng ${formatVND(realNetProfit)}!</strong>`
+        );
+      }
 
       if (nextHealth <= 25) {
         addLog(`⚠️ <strong>Xe cạn xăng & dơ nhớt (${nextHealth}%):</strong> Hãy ghé ⛽ Cây Xăng RON95 để đổ xăng & thay nhớt!`);
@@ -1265,14 +1380,24 @@ export default function GigEconomy2D() {
         gameRef.current.energy = e;
         setEnergy(e);
       }
-      if (fx.rating) setRating(r => Math.max(3.5, Math.min(5.0, +(r + fx.rating).toFixed(2))));
+      if (fx.rating) {
+        const nextR = Math.max(3.5, Math.min(5.0, +(gameRef.current.rating + fx.rating).toFixed(2)));
+        gameRef.current.rating = nextR;
+        setRating(nextR);
+        if (fx.rating < 0) {
+          playSound('strike');
+          setOneStarCount(c => c + 1);
+          gameRef.current.oneStarCount = (gameRef.current.oneStarCount || 0) + 1;
+        }
+      }
       if (fx.log) addLog(fx.log);
       const tipBonus = fx.tip || 0;
+      const wagePenalty = fx.wagePenalty || 0;
       setCustomerDialog(d => d ? { ...d, reply: fx.reply || 'Cảm ơn shipper nhiều nha!', options: [] } : d);
       setTimeout(() => {
         setCustomerDialog(null);
-        completeOrderPayout(tipBonus);
-      }, 1100);
+        completeOrderPayout(tipBonus, wagePenalty);
+      }, 1400);
     };
 
     window.__restDriver = () => {
@@ -1283,6 +1408,12 @@ export default function GigEconomy2D() {
     window.__repairBike = () => {
       navigateBikeTo(map.gasStation.parkX, map.gasStation.parkY, map.gasStation.aveY);
       addLog('⛽ Đang chạy theo làn đường vào Cây Xăng RON95 để đổ xăng & bảo dưỡng.');
+    };
+
+    // Nút test thử ngay Khách Oái Oăm nếu người chơi muốn xem liền
+    window.__forceToxicCustomerOrder = () => {
+      gameRef.current.ordersSinceDrama = 99;
+      window.__ringOrder(false);
     };
 
     let animId;
@@ -1568,16 +1699,17 @@ export default function GigEconomy2D() {
         }
       }
 
-      // --- CƠ CHẾ KHU VỰC 2: HỘI QUÁN SHIPPER ---
+      // --- CƠ CHẾ KHU VỰC 2: HỘI QUÁN SHIPPER (XÓA ÁN 1 SAO OAN) ---
       const distToUnion = Math.hypot(bike.x - map.unionHub.parkX, bike.y - map.unionHub.parkY);
       if (distToUnion < 34) {
         const now = Date.now();
         if (now - lastUnionTime > 5000) {
           lastUnionTime = now;
           setRating(5.0);
+          gameRef.current.rating = 5.0;
           setAcceptanceRate(100);
           playSound('heal');
-          addLog('🤝 <strong>Role Công Đoàn (Hội Quán Shipper):</strong> Anh em hỗ trợ gửi đơn kháng cáo sao oan thành công! Phục hồi <strong>5.0 ⭐</strong> & <strong>100% Tỷ lệ nhận đơn</strong>!');
+          addLog('🤝 <strong>Role Công Đoàn (Hội Quán Shipper):</strong> Anh em tài xế đã nộp bằng chứng kháng cáo thành công các đánh giá 1 sao oan! Phục hồi <strong>5.0 ⭐</strong> & <strong>100% Tỷ lệ nhận đơn</strong>!');
         }
       }
 
@@ -1829,8 +1961,7 @@ export default function GigEconomy2D() {
     ctx.font = '22px system-ui'; ctx.textAlign = 'center';
     ctx.fillText(emoji, x + w / 2, y + 28);
 
-    ctx.font = 'bold 11px system-ui'; ctx.fillStyle = '#f8fafc';
-    ctx.fillText(name, x + w / 2, y + 44);
+    ctx.font = 'bold 11px system-ui'; ctx.fillText(name, x + w / 2, y + 44);
 
     if (badge) {
       ctx.font = '9px system-ui'; ctx.fillStyle = color;
@@ -1928,9 +2059,9 @@ export default function GigEconomy2D() {
     setIsStrike(s => {
       const next = !s;
       if (next) {
-        addLog('✊ <strong>Đình công tập thể nổ ra:</strong> Anh em shipper đồng loạt tắt app phản đối chiết khấu 27.2% và đơn ghép giá rẻ!');
+        addLog('✊ <strong>Đình công tập thể nổ ra:</strong> Anh em shipper đồng loạt tắt app phản đối chiết khấu 27.2% và cơ chế đánh 1 sao bất công!');
       } else {
-        addLog('🤝 Đình công kết thúc: Chủ sàn cam kết hỗ trợ phụ phí xăng dầu, shipper bật lại ứng dụng.');
+        addLog('🤝 Đình công kết thúc: Chủ sàn cam kết hỗ trợ kháng cáo đánh giá 1 sao oan, shipper bật lại ứng dụng.');
       }
       return next;
     });
@@ -1954,19 +2085,19 @@ export default function GigEconomy2D() {
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       
-      {/* Top Header: Nút chuyển Thời tiết, Giờ Cao Điểm, Ban Đêm */}
+      {/* Top Header */}
       <div style={{ background: '#111827', borderRadius: '16px', border: '1px solid #1f2937', padding: '14px 18px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#10b98120', color: '#34d399', border: '1px solid #10b98140' }}>
-              🌦️ GIÁ CƯỚC & KHÁCH HÀNG THEO THỜI TIẾT • THỜI GIAN • ĐỊA ĐIỂM
+            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#ef444425', color: '#f87171', border: '1px solid #ef444450' }}>
+              💢 CỨ 2–3 ĐƠN GẶP KHÁCH OÁI OĂM CÃI LỘN & ĐÁNH 1 SAO ⭐
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#ef444420', color: '#f87171', border: '1px solid #ef444440' }}>
-              🇻🇳 BIỂU PHÍ VN: 15.000đ/2km • Sàn thu 27.2%
+            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#10b98120', color: '#34d399', border: '1px solid #10b98140' }}>
+              🌦️ GIÁ THEO THỜI TIẾT • THỜI GIAN • ĐỊA ĐIỂM
             </span>
           </div>
           <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#f8fafc' }}>
-            🛵 Mô Phỏng Ship Ví Việt Nam: Giá Đơn & Khách Nhận Hàng Biến Đổi Theo Mưa Bão, Giờ Giấc & Khu Vực
+            🛵 Mô Phỏng Ship Ví Thực Tế Việt Nam: Rủi Ro Đụng Khách Oái Oăm Đánh 1 Sao & Áp Lực Thuật Toán
           </h1>
         </div>
 
@@ -1976,9 +2107,9 @@ export default function GigEconomy2D() {
               const nextW = weather === 'clear' ? 'rain' : weather === 'rain' ? 'storm' : 'clear';
               setWeather(nextW);
               addLog(nextW === 'storm'
-                ? '⛈️ <strong>Thời tiết chuyển Mưa Bão:</strong> Đơn mới tự động cộng phụ phí bão <strong>+12.000đ</strong>, khách hàng sẽ hỏi thăm chuyện vượt bão!'
+                ? '⛈️ <strong>Thời tiết chuyển Mưa Bão:</strong> Đơn mới tự động cộng phụ phí bão <strong>+12.000đ</strong>!'
                 : nextW === 'rain'
-                ? '🌧️ <strong>Thời tiết chuyển Mưa Rào:</strong> Đơn mới cộng phụ phí mưa <strong>+5.000đ</strong>, khách ra mái hiên đón hàng!'
+                ? '🌧️ <strong>Thời tiết chuyển Mưa Rào:</strong> Đơn mới cộng phụ phí mưa <strong>+5.000đ</strong>!'
                 : '☀️ <strong>Trời Nắng Ráo trở lại:</strong> Phụ phí thời tiết về +0đ.');
             }}
             style={{ padding: '6px 11px', borderRadius: '8px', background: weather !== 'clear' ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #334155', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
@@ -1990,7 +2121,7 @@ export default function GigEconomy2D() {
               const nextR = !isRushHour;
               setIsRushHour(nextR);
               addLog(nextR
-                ? '🔥 <strong>Bật Giờ Cao Điểm (11h30-13h / 17h30-19h):</strong> Đơn mới cộng phụ phí cao điểm <strong>+4.000đ</strong>, khách dễ hỏi thăm chuyện kẹt xe!'
+                ? '🔥 <strong>Bật Giờ Cao Điểm:</strong> Đơn mới cộng phụ phí cao điểm <strong>+4.000đ</strong>!'
                 : '🕒 Đã qua Giờ Cao Điểm.');
             }}
             style={{ padding: '6px 11px', borderRadius: '8px', background: isRushHour ? '#d97706' : '#1e293b', color: '#fff', border: '1px solid #334155', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
@@ -2002,7 +2133,7 @@ export default function GigEconomy2D() {
               const nextN = !isNight;
               setIsNight(nextN);
               addLog(nextN
-                ? '🌙 <strong>Chuyển sang Ca Đêm Khuya (sau 22h):</strong> Đơn mới cộng phụ phí đêm <strong>+7.000đ</strong>, khách nhận hàng đêm dặn giữ yên lặng!'
+                ? '🌙 <strong>Chuyển sang Ca Đêm Khuya (sau 22h):</strong> Đơn mới cộng phụ phí đêm <strong>+7.000đ</strong>!'
                 : '☀️ Chuyển sang Ca Ban Ngày.');
             }}
             style={{ padding: '6px 11px', borderRadius: '8px', background: isNight ? '#4338ca' : '#1e293b', color: '#fff', border: '1px solid #334155', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
@@ -2033,7 +2164,7 @@ export default function GigEconomy2D() {
                 </div>
                 <div style={{ fontSize: '11px', color: appOnline ? '#34d399' : '#94a3b8' }}>
                   {appOnline
-                    ? `🟢 Đang Bật App • Hệ số hiện tại: ${weather === 'storm' ? 'Mưa Bão (+12k)' : weather === 'rain' ? 'Mưa Rào (+5k)' : 'Nắng (+0đ)'}${isRushHour ? ' • Cao Điểm (+4k)' : ''}${isNight ? ' • Đêm (+7k)' : ''}`
+                    ? `🟢 Đang Bật App • Hệ số: ${weather === 'storm' ? 'Mưa Bão (+12k)' : weather === 'rain' ? 'Mưa Rào (+5k)' : 'Nắng (+0đ)'}${isRushHour ? ' • Cao Điểm (+4k)' : ''}${isNight ? ' • Đêm (+7k)' : ''}`
                     : '⚪ Đang Tắt App (Offline)'}
                 </div>
               </div>
@@ -2078,7 +2209,6 @@ export default function GigEconomy2D() {
               </div>
               <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#f8fafc' }}>{incomingOrder.name}</div>
 
-              {/* Chi tiết tăng giá theo Thời tiết + Thời gian + Địa điểm */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '10px' }}>
                 <span style={{ background: '#0f172a', padding: '3px 8px', borderRadius: '6px', color: '#cbd5e1', border: '1px solid #334155' }}>
                   🛣️ Cước km gốc: <strong>{formatVND(incomingOrder.baseKmFee)}</strong>
@@ -2164,10 +2294,10 @@ export default function GigEconomy2D() {
             <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px dashed #475569', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#e2e8f0' }}>
-                  {appOnline ? '📡 App đang quét đơn (Tự động tính phụ phí Mưa / Đêm / Khu vực)...' : '📴 App đang tắt (Offline)'}
+                  {appOnline ? '📡 App đang quét đơn (Cứ 2–3 đơn sẽ gặp 1 khách oái oăm cãi lộn 1⭐)...' : '📴 App đang tắt (Offline)'}
                 </div>
                 <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
-                  Thử bật <strong>🌧️ Mưa Rào / ⛈️ Mưa Bão / 🔥 Cao Điểm / 🌙 Ca Đêm</strong> ở góc trên rồi bấm Nổ Đơn để thấy giá cước & lời thoại khách thay đổi!
+                  Bấm <strong>📲 Nổ Đơn Random</strong> để chạy đơn, hoặc bấm <strong>💢 Gặp Khách Oái Oăm Ngay</strong> để trải nghiệm cãi lộn 1 sao!
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -2179,11 +2309,12 @@ export default function GigEconomy2D() {
                   📲 Nổ Đơn Random
                 </button>
                 <button
-                  onClick={() => window.__ringOrder && window.__ringOrder(true)}
+                  onClick={() => window.__forceToxicCustomerOrder && window.__forceToxicCustomerOrder()}
                   disabled={!appOnline || isStrike}
-                  style={{ padding: '10px 12px', borderRadius: '10px', border: 'none', background: appOnline ? '#be123c' : '#334155', color: '#fff', fontWeight: 'bold', fontSize: '12px', cursor: appOnline ? 'pointer' : 'not-allowed' }}
+                  title="Kích hoạt ngay 1 đơn gặp khách oái oăm kiếm chuyện đánh 1 sao"
+                  style={{ padding: '10px 12px', borderRadius: '10px', border: 'none', background: appOnline ? '#dc2626' : '#334155', color: '#fff', fontWeight: 'bold', fontSize: '12px', cursor: appOnline ? 'pointer' : 'not-allowed' }}
                 >
-                  🌙 Đơn Đêm (+7k)
+                  💢 Đơn Khách Oái Oăm
                 </button>
               </div>
             </div>
@@ -2194,7 +2325,7 @@ export default function GigEconomy2D() {
         {/* CỘT PHẢI: BẢNG KÊ VÍ SHIPPER & CHI PHÍ THỰC TẾ VN */}
         <div style={{ background: '#111827', borderRadius: '16px', border: '1px solid #1f2937', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 'bold', color: '#34d399', fontSize: '13px' }}>💳 VÍ THU NHẬP & CHI PHÍ THỰC TẾ</span>
+            <span style={{ fontWeight: 'bold', color: '#34d399', fontSize: '13px' }}>💳 VÍ THU NHẬP & UY TÍN TÀI KHOẢN</span>
             <span style={{ fontSize: '11px', fontWeight: 'bold', color: energy > 30 ? '#34d399' : '#f87171' }}>
               ⚡ Sức: {energy.toFixed(0)}% | 🛵 Xăng/Xe: {bikeHealth}% ({totalKmDriven}km)
             </span>
@@ -2219,9 +2350,14 @@ export default function GigEconomy2D() {
               <span style={{ color: '#94a3b8', fontSize: '10px' }}>Sàn + Thuế đã thu ({(platformCutRate * 100).toFixed(1)}%):</span>
               <div style={{ fontWeight: 'bold', color: '#a78bfa', fontSize: '14px' }}>{formatVND(surplusM)}</div>
             </div>
-            <div style={{ background: '#1e293b', padding: '8px 10px', borderRadius: '8px', borderLeft: '3px solid #38bdf8' }}>
-              <span style={{ color: '#94a3b8', fontSize: '10px' }}>Đã giao ({questOrders}/10 thưởng 50k):</span>
-              <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '14px' }}>{completedOrders} đơn • {rating.toFixed(2)}⭐</div>
+            <div style={{ background: '#1e293b', padding: '8px 10px', borderRadius: '8px', borderLeft: rating < 4.7 ? '3px solid #ef4444' : '3px solid #38bdf8' }}>
+              <span style={{ color: '#94a3b8', fontSize: '10px' }}>Điểm Sao ({oneStarCount} lần bị 1⭐):</span>
+              <div style={{ fontWeight: 'bold', color: rating < 4.7 ? '#f87171' : '#f8fafc', fontSize: '14px' }}>
+                {rating.toFixed(2)} ⭐ ({completedOrders} đơn)
+              </div>
+              {rating < 4.7 && (
+                <div style={{ fontSize: '9px', color: '#fca5a5' }}>⚠️ Dưới 4.7⭐ mất thưởng! Ghé Hội Quán!</div>
+              )}
             </div>
           </div>
         </div>
@@ -2326,22 +2462,22 @@ export default function GigEconomy2D() {
           </div>
         )}
 
-        {/* HỘI THOẠI VỚI ROLE NGƯỜI ĐẶT HÀNG (THAY ĐỔI THEO THỜI TIẾT • THỜI GIAN • ĐỊA ĐIỂM) */}
+        {/* HỘI THOẠI VỚI ROLE NGƯỜI ĐẶT HÀNG (BÌNH THƯỜNG HOẶC KHÁCH OÁI OĂM CÃI LỘN 1 SAO) */}
         {customerDialog && (
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(2, 6, 23, 0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '16px', zIndex: 10 }}>
-            <div style={{ width: '100%', maxWidth: '650px', background: '#0f172a', border: `2px solid ${customerDialog.npc.color}`, borderRadius: '16px', padding: '14px 16px', boxShadow: '0 10px 30px rgba(0,0,0,0.6)', marginBottom: '28px' }}>
+          <div style={{ position: 'absolute', inset: 0, background: customerDialog.isToxic ? 'rgba(69, 10, 10, 0.72)' : 'rgba(2, 6, 23, 0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '16px', zIndex: 10 }}>
+            <div style={{ width: '100%', maxWidth: '670px', background: customerDialog.isToxic ? '#1f090d' : '#0f172a', border: `2px solid ${customerDialog.npc.color}`, borderRadius: '16px', padding: '14px 16px', boxShadow: '0 10px 35px rgba(0,0,0,0.75)', marginBottom: '28px' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div style={{ fontSize: '40px', lineHeight: 1, background: '#1e293b', borderRadius: '12px', padding: '8px' }}>{customerDialog.npc.avatar}</div>
+                <div style={{ fontSize: '40px', lineHeight: 1, background: customerDialog.isToxic ? '#450a0a' : '#1e293b', borderRadius: '12px', padding: '8px' }}>{customerDialog.npc.avatar}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                     <span style={{ fontWeight: 'bold', color: customerDialog.npc.color, fontSize: '13px' }}>
                       {customerDialog.npc.name}
                     </span>
-                    <span style={{ fontSize: '11px', background: '#1e293b', color: '#38bdf8', padding: '2px 8px', borderRadius: '10px' }}>
+                    <span style={{ fontSize: '11px', background: customerDialog.isToxic ? '#7f1d1d' : '#1e293b', color: customerDialog.isToxic ? '#fecaca' : '#38bdf8', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
                       {customerDialog.conditionTag || `🎯 Giao tại ${customerDialog.custLabel}`}
                     </span>
                   </div>
-                  <div style={{ color: '#f1f5f9', fontSize: '14px', marginTop: '6px', lineHeight: 1.45 }}>
+                  <div style={{ color: '#f8fafc', fontSize: '14px', marginTop: '6px', lineHeight: 1.45, fontWeight: customerDialog.isToxic ? '600' : 'normal' }}>
                     “{customerDialog.reply || customerDialog.question}”
                   </div>
                 </div>
@@ -2353,9 +2489,9 @@ export default function GigEconomy2D() {
                     <button
                       key={i}
                       onClick={() => { if (window.__resolveCustomerDialog) window.__resolveCustomerDialog(opt); }}
-                      style={{ textAlign: 'left', padding: '9px 12px', background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '10px', cursor: 'pointer', fontSize: '13px' }}
+                      style={{ textAlign: 'left', padding: '9px 12px', background: customerDialog.isToxic ? '#2e1015' : '#1e293b', color: '#e2e8f0', border: `1px solid ${customerDialog.isToxic ? '#7f1d1d' : '#334155'}`, borderRadius: '10px', cursor: 'pointer', fontSize: '13px' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = customerDialog.npc.color; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#334155'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = customerDialog.isToxic ? '#7f1d1d' : '#334155'; }}
                     >
                       {i + 1}. {opt.text}
                     </button>
@@ -2363,8 +2499,10 @@ export default function GigEconomy2D() {
                 </div>
               )}
               {customerDialog.reply && (
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#34d399', marginTop: '8px' }}>
-                  💰 Giao hàng hoàn tất! Đang quyết toán tiền cước vào Ví Shipper...
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: customerDialog.isToxic ? '#f87171' : '#34d399', marginTop: '8px' }}>
+                  {customerDialog.isToxic
+                    ? '⭐ Bị khách oái oăm đánh 1 sao! Đang chốt đơn & ghi nhận biến động điểm uy tín...'
+                    : '💰 Giao hàng hoàn tất! Đang quyết toán tiền cước vào Ví Shipper...'}
                 </div>
               )}
             </div>
@@ -2372,7 +2510,7 @@ export default function GigEconomy2D() {
         )}
 
         <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(15, 23, 42, 0.88)', border: '1px solid #334155', borderRadius: '20px', padding: '4px 16px', fontSize: '11px', color: '#cbd5e1', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          🌦️ <em>Giá đơn & câu hỏi của khách tự động thay đổi theo Thời tiết (Nắng/Mưa/Bão), Thời gian (Ngày/Cao điểm/Đêm) & Địa điểm!</em>
+          💢 <em>Cứ 2–3 đơn sẽ gặp 1 Khách Oái Oăm cãi lộn & đánh giá 1 sao như ngoài đời thực! Ghé 🤝 Hội Quán Shipper để kháng cáo sao oan!</em>
         </div>
       </div>
 
@@ -2387,10 +2525,11 @@ export default function GigEconomy2D() {
         </button>
 
         <button
-          onClick={() => { if (window.__restDriver) window.__restDriver(); }}
-          style={{ padding: '11px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+          onClick={() => { if (window.__forceToxicCustomerOrder) window.__forceToxicCustomerOrder(); }}
+          disabled={isStrike || !appOnline || energy < 8}
+          style={{ padding: '11px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '12px', cursor: (energy >= 8 && appOnline) ? 'pointer' : 'not-allowed', fontWeight: 'bold', fontSize: '12px' }}
         >
-          ☕ Ghé Trà Đá Vỉa Hè (0đ)
+          💢 Test Ngay Đơn Khách Oái Oăm
         </button>
 
         <button
@@ -2404,7 +2543,7 @@ export default function GigEconomy2D() {
           onClick={() => { if (window.__driveToLandmark) window.__driveToLandmark('unionHub'); }}
           style={{ padding: '11px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
         >
-          🤝 Ghé Hội Quán (Hồi 5.0 ⭐)
+          🤝 Ghé Hội Quán (Xóa Án 1⭐)
         </button>
       </div>
 
@@ -2473,7 +2612,7 @@ export default function GigEconomy2D() {
           >
             {autoDispatch ? '⏸️ Tắt Tự Động Nhận & Chạy Đơn' : '⚡ Bật Tự Động Nhận Đơn & Chạy Liên Tục'}
           </button>
-          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Sổ cái chi tiết thu - chi từng cuốc xe tại Việt Nam:</span>
+          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Sổ cái chi tiết thu - chi & biên bản cãi lộn 1 sao:</span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
