@@ -1,18 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// Danh sách các loại món ăn và đơn hàng ngẫu nhiên thực tế
+// --- DỮ LIỆU ĐƠN HÀNG & CHI PHÍ THỰC TẾ SHIPPER VIỆT NAM (TP.HCM / HÀ NỘI) ---
+// Trong thực tế tại VN (GrabFood / ShopeeFood / BeFood):
+// - Tiền món ăn (COD ứng Ví): 35.000đ - 250.000đ (Shipper chỉ ứng trước rồi thu lại của khách)
+// - Tiền cước vận chuyển (W):
+//   + Dưới 3km: ~15.000đ - 16.000đ/đơn
+//   + Trên 3km: +4.000đ - 4.500đ cho mỗi km tiếp theo
+// - Chiết khấu sàn + Thuế VAT/TNCN (m): ~27.2% (mức chuẩn thực tế tại VN, có thể tăng lên 30-35%)
+// - Chi phí xăng RON 95 (~23.500đ/lít, xe Wave/Sirius tốn ~2L/100km) + Nhớt (120k/1500km) + Khấu hao lốp/nhông sên/4G (c): ~1.300đ / km
 const RANDOM_ORDER_TYPES = [
-  { name: '🧋 Trà Sữa Trân Châu Đường Đen', baseDist: 2.2, minPrice: 35, maxPrice: 50, shopKey: 'milkTeaShop', custKeys: ['university', 'customerB'] },
-  { name: '🥖 Bánh Mì Chả Cá Nóng Giòn', baseDist: 1.8, minPrice: 30, maxPrice: 45, shopKey: 'milkTeaShop', custKeys: ['university', 'customerA'] },
-  { name: '🍜 Phở Bò Tái Nạm Gầu Béo', baseDist: 4.5, minPrice: 65, maxPrice: 85, shopKey: 'restaurant', custKeys: ['hospital', 'customerA'] },
-  { name: '🍛 Cơm Tấm Sườn Bì Chả Trứng', baseDist: 5.2, minPrice: 75, maxPrice: 95, shopKey: 'restaurant', custKeys: ['customerA', 'university'] },
-  { name: '🍕 Pizza Hải Sản Cỡ Lớn', baseDist: 8.5, minPrice: 130, maxPrice: 170, shopKey: 'pizzaShop', custKeys: ['customerB', 'customerA'] },
-  { name: '🍗 Gà Rán Gia Đình 6 Miếng', baseDist: 7.0, minPrice: 110, maxPrice: 150, shopKey: 'pizzaShop', custKeys: ['university', 'customerB'] },
-  { name: '🍲 Lẩu Thái Chua Cay 3 Người', baseDist: 13.5, minPrice: 210, maxPrice: 280, shopKey: 'restaurant', custKeys: ['customerB', 'hospital'] },
-  { name: '🥣 Cháo Bào Ngư Hồi Sức', baseDist: 5.8, minPrice: 90, maxPrice: 130, shopKey: 'restaurant', custKeys: ['hospital'] },
-  { name: '☕ Cà Phê Muối Mang Đi', baseDist: 2.5, minPrice: 40, maxPrice: 55, shopKey: 'milkTeaShop', custKeys: ['customerB', 'university'] },
-  { name: '🍔 Combo Burger Bò Phô Mai', baseDist: 6.0, minPrice: 85, maxPrice: 120, shopKey: 'pizzaShop', custKeys: ['university', 'customerA'] }
+  { name: '🧋 Trà Sữa Trân Châu Đường Đen', baseDist: 2.1, codFoodPrice: 45, shopKey: 'milkTeaShop', custKeys: ['university', 'customerB'] },
+  { name: '🥖 Bánh Mì Chả Cá Nóng Giòn', baseDist: 1.6, codFoodPrice: 25, shopKey: 'milkTeaShop', custKeys: ['university', 'customerA'] },
+  { name: '🍜 Phở Bò Tái Nạm Gầu Béo', baseDist: 3.4, codFoodPrice: 65, shopKey: 'restaurant', custKeys: ['hospital', 'customerA'] },
+  { name: '🍛 Cơm Tấm Sườn Bì Chả Trứng', baseDist: 2.8, codFoodPrice: 55, shopKey: 'restaurant', custKeys: ['customerA', 'university'] },
+  { name: '🍕 Pizza Hải Sản Cỡ Lớn', baseDist: 5.5, codFoodPrice: 185, shopKey: 'pizzaShop', custKeys: ['customerB', 'customerA'] },
+  { name: '🍗 Gà Rán Giòn Cay 3 Miếng', baseDist: 4.2, codFoodPrice: 115, shopKey: 'pizzaShop', custKeys: ['university', 'customerB'] },
+  { name: '🍲 Lẩu Thái Chua Cay Nhỏ', baseDist: 6.8, codFoodPrice: 220, shopKey: 'restaurant', custKeys: ['customerB', 'hospital'] },
+  { name: '🥣 Cháo Thịt Bằm Hồi Sức', baseDist: 3.1, codFoodPrice: 45, shopKey: 'restaurant', custKeys: ['hospital'] },
+  { name: '☕ Cà Phê Muối Sài Gòn', baseDist: 1.9, codFoodPrice: 32, shopKey: 'milkTeaShop', custKeys: ['customerB', 'university'] },
+  { name: '🍔 Combo Burger Bò + Khoai Tây', baseDist: 4.6, codFoodPrice: 95, shopKey: 'pizzaShop', custKeys: ['university', 'customerA'] }
 ];
+
+// Hàm định dạng tiền tệ Việt Nam chuẩn (VD: 16.5 -> "16.500đ", 120 -> "120.000đ")
+const formatVND = (kVal) => {
+  const dong = Math.round((Number(kVal) || 0) * 1000);
+  return dong.toLocaleString('vi-VN') + 'đ';
+};
 
 // --- ROLE 1: CHỦ QUÁN / NHÂN VIÊN TẠI CÁC ĐIỂM LẤY MÓN ---
 const SHOP_NPCS = {
@@ -23,27 +36,29 @@ const SHOP_NPCS = {
 
 const SHOP_DIALOGS = [
   {
-    question: 'Đơn này khách đặt qua Ví Ship, bếp đang đóng hộp. Em kiểm tra mã đơn trên App rồi nhận món nhé!',
+    question: 'Đơn này khách chọn trả tiền mặt (COD), em ứng từ Ví Shipper trả tiền món cho quán trước rồi lấy hàng nhé!',
     options: [
-      { text: '📱 Đối chiếu mã đơn & kiểm tra kỹ niêm phong', effect: () => ({ energy: -3, rating: 0.04, reply: 'Chuẩn mã đơn rồi đó em, chúc chạy thượng lộ bình an nha!', log: '✅ Kiểm tra kỹ mã đơn tại quán: tránh giao nhầm, khách tin tưởng (+0.04 ⭐).' }) },
-      { text: '🚀 Đưa lẹ giúp em, App đang đếm ngược giờ giao!', effect: () => (Math.random() < 0.45
-        ? { rating: -0.08, reply: 'Rồi rồi cầm lấy đi lẹ kẻo trễ...', log: '⚠️ Lấy vội không kiểm tra kỹ: canh bị sánh nhẹ ra túi (-0.08 ⭐).' }
-        : { reply: 'Đây xong ngay rồi em!', log: '⚡ Lấy món siêu tốc, bắt đầu phóng đi giao!' }) },
-      { text: '❓ Chị ơi, đơn Ví này sàn chiết khấu quán bao nhiêu %?', effect: (g) => ({ energy: -2, reply: 'Sàn trừ thẳng vào Ví quán chị 28% mỗi đơn đó em, quán cũng bị bóc lột chẳng kém gì shipper!', log: `📚 <strong>Kinh tế học Mác - Lênin:</strong> Tư bản nền tảng thu địa tô/thặng dư kép từ cả Tiểu chủ quán ăn (28%) lẫn Lao động shipper (${(g.platformCutRate * 100).toFixed(0)}%).` }) }
+      { text: '💳 Quẹt Ví Shipper ứng tiền món & kiểm tra kỹ niêm phong', effect: () => ({ energy: -2, rating: 0.03, reply: 'Quán nhận đủ tiền món rồi nha, em giao tới thu lại của khách nhé!', log: '💳 <strong>Thực tế Shipper VN:</strong> Phải tự bỏ vốn nạp sẵn vào Ví Ký Quỹ (200k-500k) để ứng tiền đồ ăn cho khách, chịu rủi ro nếu bị "bom hàng".' }) },
+      { text: '🚀 Đưa món lẹ giúp em, đơn này cước có mười mấy nghìn mà chờ lâu quá!', effect: () => (Math.random() < 0.45
+        ? { rating: -0.06, reply: 'Rồi rồi cầm lấy đi lẹ kẻo trễ...', log: '⚠️ Lấy vội không kiểm tra muỗng đũa: khách trừ sao (-0.06 ⭐).' }
+        : { reply: 'Xong ngay rồi đây em, chạy cẩn thận nha!', log: '⚡ Nhận món nhanh gọn, bắt đầu chạy đi giao!' }) },
+      { text: '❓ Chị ơi, bán trên App thế này quán bị sàn thu chiết khấu bao nhiêu %?', effect: (g) => ({ energy: -2, reply: 'Sàn cắt của quán 25% đến 30% giá món đó em! Quán phải bán đắt hơn tại chỗ mới không lỗ.', log: `📚 <strong>Bóc lột kép tại VN:</strong> Sàn thu 25-30% từ Chủ quán VÀ thu ${(g.platformCutRate * 100).toFixed(1)}% (gồm phí sàn + thuế TNCN/VAT) trên cước của Shipper!` }) }
     ]
   },
   {
-    question: 'Bếp đang đông khách quá, em chịu khó đợi 4 phút được không? Quán mời em ly trà đá mát lạnh nè!',
+    question: 'Giờ cao điểm trưa bếp đang kẹt 5 đơn liền, em ngồi đợi 5 phút uống ly trà đá miễn phí của quán nha!',
     options: [
-      { text: '🥤 Dạ em đợi được, cảm ơn quán mời nước ạ (+12% thể lực)', effect: () => ({ energy: 12, rating: 0.03, reply: 'Uống miếng nước cho đỡ khát, món của em xong rồi đây!', log: '☕ Chủ quán mời trà đá trong lúc chờ bếp: +12% thể lực. Tình tương thân tương ái giữa người lao động.' }) },
-      { text: '⏱️ Hối bếp làm nhanh vì sợ thuật toán phạt trễ giờ', effect: () => ({ energy: -4, reply: 'Bếp ráng hết sức rồi, của em đây nha!', log: '⏳ Áp lực thời gian của thuật toán biến thành căng thẳng giữa tài xế và nhân viên quán.' }) }
+      { text: '🥤 Dạ em đợi được, cảm ơn quán mời ly trà đá ạ (+10% thể lực)', effect: () => ({ energy: 10, rating: 0.03, reply: 'Uống đi cho mát, chạy ngoài đường nắng 38 độ cực quá!', log: '☕ Được quán mời trà đá miễn phí trong lúc chờ món (+10% thể lực). Thời gian chờ quán là "thời gian chết" không được tính công.' }) },
+      { text: '⏱️ Hối bếp làm nhanh vì sợ trễ giờ cao điểm mất thưởng mốc ngày', effect: () => ({ energy: -3, reply: 'Bếp ráng hết sức rồi, của em xong rồi đây!', log: '⏳ Để đạt thưởng mốc (12-15 đơn/ngày), shipper luôn bị áp lực từng phút chờ đợi tại quán.' }) }
     ]
   },
   {
-    question: 'Đơn này khách chọn Thanh Toán Tiền Mặt, em ứng Ví Shipper 80k trước cho quán nhé?',
+    question: 'Khách dặn kỹ: "Xin thêm 2 bịch tương ớt và nước mắm riêng". Em kiểm tra giùm chị nha!',
     options: [
-      { text: '💳 Quẹt Ví Shipper ứng tiền nhận đơn ngay', effect: () => ({ energy: -2, rating: 0.03, reply: 'Đã nhận đủ tiền ứng qua Ví! Em giao tới nơi thu lại của khách nhé.', log: '💳 <strong>Cơ chế Ship Ví:</strong> Tài xế phải nạp tiền sẵn vào Ví Tài Xế để ứng vốn lưu động cho nền tảng và quán.' }) },
-      { text: '🔍 Kiểm tra kỹ hóa đơn trước khi ứng tiền Ví', effect: () => ({ energy: -3, rating: 0.05, reply: 'Hóa đơn chuẩn 100% nha em, cảm ơn em cẩn thận!', log: '🧾 Kiểm tra kỹ hóa đơn ứng Ví, tránh rủi ro khách bùng hàng.' }) }
+      { text: '🔍 Mở túi kiểm tra kỹ từng bịch gia vị cho chắc ăn', effect: () => ({ energy: -2, rating: 0.04, reply: 'Đủ hết rồi đó, em cẩn thận ghê!', log: '✅ Kiểm tra kỹ đơn hàng: tránh bị khách đánh 1 sao oan (+0.04 ⭐).' }) },
+      { text: '🏃 Cầm túi phóng đi luôn để kịp ghép đơn tiếp theo', effect: () => (Math.random() < 0.35
+        ? { rating: -0.12, reply: 'Ơ... hình như chị quên bỏ tương ớt rồi!', log: '⭐ Quán quên bỏ tương ớt nhưng khách lại đánh 1 sao vào tài khoản Shipper (-0.12 ⭐)!' }
+        : { reply: 'Ok đủ hết trong bịch rồi nha em.', log: '🏃 May mắn đơn đủ đồ, phóng nhanh tới điểm giao.' }) }
     ]
   }
 ];
@@ -52,55 +67,57 @@ const SHOP_DIALOGS = [
 const CUSTOMER_NPCS = {
   university: { name: 'Bạn Minh (Sinh Viên KTX)', role: 'Role Khách Sinh Viên · Khu 1 Đại Học', avatar: '🧑‍🎓', color: '#3b82f6' },
   hospital:   { name: 'Bác Sĩ Lan & Người Nhà BN', role: 'Role Khách Bệnh Viện · Khu 5 Y Tế', avatar: '👩‍⚕️', color: '#f43f5e' },
-  customerA:  { name: 'Chị Hương (Nhà Phố Khu Dân Cư)', role: 'Role Khách Gia Đình · Khu 4 Dân Cư', avatar: '🙋‍♀️', color: '#06b6d4' },
-  customerB:  { name: 'Anh Hoàng (Chung Cư Cao Cấp B)', role: 'Role Khách Chung Cư · Khu 5 Công Nghệ', avatar: '🧑‍💼', color: '#8b5cf6' }
+  customerA:  { name: 'Chị Hương (Nhà Phố Hẻm Nhỏ)', role: 'Role Khách Gia Đình · Khu 4 Dân Cư', avatar: '🙋‍♀️', color: '#06b6d4' },
+  customerB:  { name: 'Anh Hoàng (Chung Cư Cao Tầng)', role: 'Role Khách Chung Cư · Khu 5 Công Nghệ', avatar: '🧑‍💼', color: '#8b5cf6' }
 };
 
 const CUSTOMER_DIALOGS = [
   {
-    question: 'Cảm ơn shipper nha! Trời nắng/mưa cực quá, mình gửi tặng thêm 15k tiền tip vào Ví cho bạn uống nước nhé!',
+    question: 'Trời nắng gắt quá mà anh giao nhanh ghê! Tiền đơn em trả đủ, gửi anh thêm 5.000đ tiền lẻ uống trà đá nhé!',
     options: [
-      { text: '🙏 Dạ em cảm ơn anh/chị rất nhiều! Chúc ngon miệng ạ!', effect: () => ({ tip: 15, rating: 0.05, reply: 'Mình vừa bấm đánh giá 5 sao trên App cho bạn luôn rồi đó!', log: '💵 <strong>Khách hàng boa thêm +15k:</strong> Khoản tiền thưởng trực tiếp 100% vào Ví mà thuật toán không thể cắt phế!' }) },
-      { text: '😊 Em xin nhận ạ, nhờ anh/chị cho em xin 5 sao trên App nhé!', effect: () => ({ tip: 15, rating: 0.08, reply: 'Ok liền, 5 sao full điểm nhiệt tình nha!', log: '⭐ Nhận +15k tiền tip và đánh giá 5 sao tuyệt đối từ khách hàng!' }) }
+      { text: '🙏 Dạ em cảm ơn nhiều ạ! Tiền tip 5.000đ bằng nửa tiền lời cuốc xe rồi!', effect: () => ({ tip: 5, rating: 0.04, reply: 'Em vừa bấm 5 sao trên App cho anh luôn rồi đó!', log: '💵 <strong>Khách tip +5.000đ thực tế:</strong> Với cuốc xe lời ròng chỉ ~8.000đ-10.000đ, 5.000đ tiền tip của khách là khoản hỗ trợ cực lớn không bị sàn cắt phế!' }) },
+      { text: '😊 Cảm ơn anh/chị, chúc anh/chị ngon miệng và cho em xin 5 sao nhé!', effect: () => ({ tip: 10, rating: 0.06, reply: 'Nhiệt tình quá, mình gửi hẳn 10.000đ tiền tip qua App luôn nha!', log: '⭐ Khách quý mến thưởng nóng +10.000đ tiền tip và đánh giá 5 sao!' }) }
     ]
   },
   {
-    question: 'Ủa bạn ơi, sao giao tới hơi lâu vậy? Mình đặt nãy giờ bụng đói meo luôn rồi!',
+    question: 'Sao đơn này giao lâu vậy anh? Em thấy trên bản đồ anh chạy vòng qua tận đường bên kia mới tới chỗ em!',
     options: [
-      { text: '🙏 Dạ nãy quán đông với kẹt đèn đỏ, mong anh/chị thông cảm giúp em ạ', effect: () => ({ energy: -3, rating: 0.02, reply: 'À ra vậy, thôi mình thông cảm, lần sau nhớ báo mình tiếng nha!', log: '🗣️ Lao động cảm xúc (Emotional Labor): Shipper phải nhẫn nhịn xin lỗi dù lỗi do quán đông hoặc tắc đường.' }) },
-      { text: '📱 Dạ do App ghép đơn tự động nên em phải vòng qua 2 điểm ạ', effect: () => ({ rating: -0.05, reply: 'App ghép đơn kỳ vậy làm đồ ăn nguội bớt... Thôi mình nhận hàng nha.', log: '⚠️ Thuật toán ghép đơn để tối đa hóa m cho sàn, nhưng khách hàng lại trút sự không hài lòng lên điểm sao của tài xế.' }) }
+      { text: '🙏 Dạ do App tự động ghép 2 đơn cùng lúc, mong anh/chị thông cảm giúp em', effect: () => ({ energy: -2, rating: 0.01, reply: 'À do App ghép đơn hả, thôi em thông cảm không trừ sao anh đâu.', log: '📦📦 <strong>Thực tế Đơn Ghép tại VN:</strong> Sàn thu đủ phí ship của 2 khách (~32.000đ) nhưng chỉ trả cho shipper ~22.000đ và bắt shipper chịu tiếng giao trễ.' }) },
+      { text: '😓 Dạ kẹt xe giờ tan tầm ở ngã tư quá anh/chị ơi', effect: () => ({ energy: -3, rating: 0.02, reply: 'Ừ đường Sài Gòn/Hà Nội giờ này kẹt cứng, cảm ơn anh nha!', log: '🛵 Kẹt xe giờ cao điểm làm tốn xăng gấp đôi nhưng tiền cước vẫn cố định.' }) }
     ]
   },
   {
-    question: 'Mình đang bận họp trên lầu, bạn gửi bảo vệ hoặc treo ở kệ nhận hàng rồi bấm hoàn tất nhận tiền Ví nhé!',
+    question: 'Mình ở tầng 15 chung cư, gửi đồ ở bàn lễ tân sảnh G rồi chụp hình gửi qua App giúp mình nhé!',
     options: [
-      { text: '📸 Đặt ngay ngắn lên kệ & chụp ảnh xác nhận qua App Shipper', effect: () => ({ energy: -2, rating: 0.04, reply: 'Đã thấy ảnh xác nhận trên App! Tiền đã nổ về Ví bạn nhé!', log: '📸 Chụp ảnh giao hàng không chạm chuẩn quy trình App Shipper (+0.04 ⭐).' }) },
-      { text: '🏃 Mang tận nơi lên sảnh gửi bảo vệ ký nhận giúp khách', effect: () => ({ energy: -5, tip: 10, rating: 0.06, reply: 'Chu đáo quá, mình tip thêm 10k qua Ví cảm ơn bạn nha!', log: '💪 Chịu khó đi bộ gửi tận sảnh: tốn thêm 5% thể lực nhưng được khách tip +10k!' }) }
+      { text: '📸 Đặt lên kệ lễ tân & chụp ảnh xác nhận hoàn tất đơn', effect: () => ({ energy: -2, rating: 0.03, reply: 'Đã nhận được ảnh trên App! Tiền đã hoàn về Ví bạn nhé!', log: '📸 Hoàn tất giao hàng tại sảnh chung cư, thu hồi đủ tiền cọc COD + tiền cước vào Ví.' }) },
+      { text: '🏃 Gửi bảo vệ trông giúp cẩn thận & gọi báo khách xuống lấy', effect: () => ({ energy: -3, tip: 5, rating: 0.05, reply: 'Cảm ơn bạn chu đáo nha, mình tip thêm 5.000đ trên App!', log: '👍 Phục vụ tận tâm được khách tip thêm +5.000đ và +0.05 ⭐!' }) }
     ]
   }
 ];
 
-// --- DANH SÁCH 5 KHU VỰC & CHỨC NĂNG RIÊNG CỦA TỪNG ROLE ---
+// --- DANH SÁCH 5 KHU VỰC & CHỨC NĂNG CHI PHÍ THỰC TẾ VIỆT NAM ---
 const ZONE_ROLES_INFO = [
-  { id: 'zone1', title: 'Khu 1: Phố Ẩm Thực & ĐH', role: '👩‍🍳 Chủ Quán & 🧑‍🎓 Sinh Viên', desc: 'Lấy đơn Cơm/Phở tại Quán Cô Ba, hoặc giao đồ ăn cho sinh viên KTX Đại Học.', targetKey: 'restaurant', color: '#f59e0b' },
-  { id: 'zone2', title: 'Khu 2: Ăn Vặt & Hạ Tầng Xe', role: '🧑‍🍳 Pha Chế & ⛽ Thợ Máy', desc: 'Lấy Trà Sữa/Pizza, hoặc ghé Trạm Xăng & Kho Sạc để đổ xăng, bảo dưỡng xe (trả c).', targetKey: 'gasStation', color: '#ec4899' },
-  { id: 'zone3', title: 'Khu 3: Lao Động & Công Đoàn', role: '☕ Trà Đá, 🚨 CSGT & 🤝 Công Đoàn', desc: 'Uống trà đá hồi máu miễn phí, cẩn thận Chốt CSGT phạt đèn đỏ, ghé Hội Quán hồi 5⭐.', targetKey: 'unionHub', color: '#10b981' },
-  { id: 'zone4', title: 'Khu 4: Công Viên & Dân Cư', role: '🏪 Tiện Lợi 24h & 🙋‍♀️ Khách Nhà Phố', desc: 'Ghé Công Viên/Tiện Lợi 24h nạp tăng lực, giao đơn tận nhà cho Khách Hàng A.', targetKey: 'customerA', color: '#22c55e' },
-  { id: 'zone5', title: 'Khu 5: Đô Thị Công Nghệ Cao', role: '🏢 Chủ Sàn AI, 🏥 Y Tế & 🧑‍💼 Chung Cư', desc: 'Trụ sở AI Platform rút giá trị thặng dư m, giao đơn Bệnh Viện & Chung Cư B.', targetKey: 'platformHQ', color: '#8b5cf6' }
+  { id: 'zone1', title: 'Khu 1: Phố Ẩm Thực & ĐH', role: '👩‍🍳 Chủ Quán & 🧑‍🎓 Sinh Viên', desc: 'Lấy Cơm tấm/Phở (ứng COD 45k-65k), giao đơn KTX Sinh viên (cước 15k-22k).', targetKey: 'restaurant', color: '#f59e0b' },
+  { id: 'zone2', title: 'Khu 2: Ăn Vặt & Trạm Xăng', role: '⛽ Xăng RON95 & Nhớt Xe', desc: 'Đổ xăng RON 95 (23.500đ/L) & thay nhớt/bảo dưỡng xe (trung bình ~1.300đ/km).', targetKey: 'gasStation', color: '#ec4899' },
+  { id: 'zone3', title: 'Khu 3: Trà Đá, CSGT & Công Đoàn', role: '☕ Trà Đá 0đ • 🚨 CSGT • 🤝 Hội Quán', desc: 'Uống trà đá miễn phí, coi chừng CSGT phạt vượt đèn (150k), Hội Quán hồi 5⭐.', targetKey: 'unionHub', color: '#10b981' },
+  { id: 'zone4', title: 'Khu 4: Công Viên & Dân Cư', role: '🏪 Bò Húc 12k & 🙋‍♀️ Nhà Phố', desc: 'Ghé Tiện Lợi 24h mua Bò Húc (-12.000đ) hồi nhanh thể lực, giao đơn hẻm dân cư.', targetKey: 'customerA', color: '#22c55e' },
+  { id: 'zone5', title: 'Khu 5: Đô Thị Công Nghệ Cao', role: '🏢 Sàn AI (27.2%) & 🧑‍💼 Chung Cư', desc: 'Trụ sở Sàn thu 27.2% chiết khấu + thuế, giao đơn Bệnh Viện & Chung Cư B.', targetKey: 'platformHQ', color: '#8b5cf6' }
 ];
 
 export default function GigEconomy2D() {
   const canvasRef = useRef(null);
 
-  // --- TRẠNG THÁI APP SHIPPER & VÍ TÀI XẾ ---
-  const [appOnline, setAppOnline] = useState(true); // Bật App / Tắt App
-  const [incomingOrder, setIncomingOrder] = useState(null); // Đơn hàng đang kêu "Ting ting" chờ Nhận/Từ chối
-  const [walletDeposit, setWalletDeposit] = useState(200); // Ví Ký Quỹ / Ví Trên để nhận đơn ứng tiền
+  // --- TRẠNG THÁI APP SHIPPER & VÍ TÀI XẾ THỰC TẾ VIỆT NAM ---
+  const [appOnline, setAppOnline] = useState(true);
+  const [incomingOrder, setIncomingOrder] = useState(null);
+  const [walletDeposit, setWalletDeposit] = useState(300); // Ví Tín Dụng / Ký Quỹ (300.000đ để nhận đơn COD)
 
-  // --- TRẠNG THÁI TÀI XẾ (LAO ĐỘNG) ---
+  // --- TRẠNG THÁI TÀI XẾ (ĐƠN VỊ: NGHÌN ĐỒNG - VD: 50 = 50.000đ) ---
   const [energy, setEnergy] = useState(100);
-  const [driverWage, setDriverWage] = useState(85); // Ví Tiền Mặt / Thu nhập thực nhận (khởi điểm 85k để dễ trải nghiệm)
-  const [driverCost, setDriverCost] = useState(0); // c đã chi trả tại trạm xăng
+  const [driverWage, setDriverWage] = useState(50); // Khởi đầu ca có 50.000đ tiền lẻ trong Ví Thu Nhập
+  const [driverCost, setDriverCost] = useState(0); // Tổng tiền xăng RON95 + nhớt + hao mòn đã trả (c)
+  const [unpaidWearCost, setUnpaidWearCost] = useState(0); // Chi phí xăng & hao mòn tích lũy trên các km đã chạy chờ thanh toán tại Trạm Xăng
+  const [totalKmDriven, setTotalKmDriven] = useState(0); // Tổng số km đã chạy trong ca
   const [completedOrders, setCompletedOrders] = useState(0);
   const [rating, setRating] = useState(4.95);
   const [acceptanceRate, setAcceptanceRate] = useState(96);
@@ -108,23 +125,25 @@ export default function GigEconomy2D() {
   const [questOrders, setQuestOrders] = useState(0);
   const [bikeHealth, setBikeHealth] = useState(100);
 
-  // --- TRẠNG THÁI CHỦ NỀN TẢNG (TƯ BẢN SỐ) ---
-  const [platformCutRate, setPlatformCutRate] = useState(0.25); // 25%
-  const [surplusM, setSurplusM] = useState(0); // m
+  // --- TRẠNG THÁI CHỦ NỀN TẢNG (TƯ BẢN SỐ TẠI VN) ---
+  // Chiết khấu chuẩn tại Việt Nam: 20% phí sàn + 7.2% thuế VAT & TNCN = ~27.2%
+  const [platformCutRate, setPlatformCutRate] = useState(0.272);
+  const [surplusM, setSurplusM] = useState(0); // Tổng thặng dư m sàn đã rút (nghìn đồng)
   const [algoSpeed, setAlgoSpeed] = useState(1.0);
   const [algoLevel, setAlgoLevel] = useState(1);
   const [droneCount, setDroneCount] = useState(0);
 
-  // --- TRẠNG THÁI ĐƠN HÀNG HIỆN TẠI (NGẪU NHIÊN) ---
+  // --- TRẠNG THÁI ĐƠN HÀNG HIỆN TẠI (GIÁ CƯỚC THỰC TẾ VN) ---
   const [currentOrder, setCurrentOrder] = useState({
     name: '🍛 Cơm Tấm Sườn Bì Chả Trứng',
-    distance: 4.8,
-    price: 85,
-    vehicleCost: 24,
+    distance: 2.8,
+    codFoodPrice: 55, // Tiền đồ ăn ứng hộ (55.000đ)
+    price: 16.0,      // Cước phí giao hàng W (16.000đ cho 2.8km)
+    vehicleCost: 3.8, // Chi phí xăng RON95 + nhớt + khấu hao xe c (~3.800đ)
     shopKey: 'restaurant',
-    shopLabel: 'Quán Cơm Phở',
+    shopLabel: 'Quán Cơm Phở (Khu 1)',
     custKey: 'customerA',
-    custLabel: 'Nhà Khách Hàng A'
+    custLabel: 'Nhà Khách Hàng A (Khu 4)'
   });
 
   // --- BIẾN ĐỘNG THỊ TRƯỜNG & CHI PHÍ ---
@@ -136,40 +155,42 @@ export default function GigEconomy2D() {
   const [autoDispatch, setAutoDispatch] = useState(false);
 
   const [hasFood, setHasFood] = useState(false);
-  // missionState: 'idle' | 'ringing' | 'to_restaurant' | 'at_shop' | 'picking_up' | 'to_customer' | 'at_customer'
   const [missionState, setMissionState] = useState('idle');
-  const [shopDialog, setShopDialog] = useState(null); // Hội thoại tại quán
-  const [customerDialog, setCustomerDialog] = useState(null); // Hội thoại tại điểm giao hàng
+  const [shopDialog, setShopDialog] = useState(null);
+  const [customerDialog, setCustomerDialog] = useState(null);
   const [activeZoneTab, setActiveZoneTab] = useState(null);
 
   const [logList, setLogList] = useState([
-    '📱 <strong>CƠ CHẾ APP SHIP VÍ:</strong> Bật App Online → Nổ đơn ngẫu nhiên → Bấm [Nhận Đơn] → Chạy theo GPS tới Quán gặp Chủ Quán → Chạy tới địa chỉ Khách giao hàng & nhận tiền vào Ví!',
-    '🗺️ Mỗi Khu vực & Role (Chủ quán, Khách hàng, CSGT, Công đoàn, Trạm xăng, Trà đá) đều có chức năng tương tác riêng.'
+    '🇻🇳 <strong>BIỂU PHÍ SHIPPER VIỆT NAM THỰC TẾ:</strong> Cước gốc 2km đầu <strong>15.000đ</strong> (+4.200đ/km tiếp theo) • Sàn + Thuế thu <strong>27.2%</strong> • Xăng RON95 & hao mòn xe <strong>~1.300đ/km</strong>.',
+    '📱 Hãy bấm <strong>[📲 Nổ Đơn Random]</strong> để xem bảng tính chi tiết từng nghìn đồng của một cuốc xe ngoài đời thực!'
   ]);
 
-  // Phân tích dòng tiền đơn hiện tại W = c + v + m
+  // Phân tích dòng tiền đơn hiện tại W = c + v + m (theo đơn vị nghìn đồng, hiển thị ra VNĐ)
   const displayOrder = incomingOrder || currentOrder;
-  const currentPrice = displayOrder.price;
-  const currentCost = displayOrder.vehicleCost;
-  const currentSurplusM = currentPrice * platformCutRate;
-  const currentWageV = Math.max(0, currentPrice - currentSurplusM - currentCost);
+  const currentPrice = displayOrder.price; // W: Cước vận chuyển (VD: 16.0 = 16.000đ)
+  const currentCost = displayOrder.vehicleCost; // c: Xăng + hao mòn xe (VD: 3.8 = 3.800đ)
+  const currentSurplusM = +(currentPrice * platformCutRate).toFixed(1); // m: Sàn thu 27.2% (VD: 4.4 = 4.400đ)
+  const currentGrossDriver = +(currentPrice - currentSurplusM).toFixed(1); // Tiền về Ví trước khi trừ xăng (VD: 11.6 = 11.600đ)
+  const currentWageV = Math.max(0, +(currentPrice - currentSurplusM - currentCost).toFixed(1)); // v: Tiền công thực bỏ túi nuôi sống bản thân (VD: 7.8 = 7.800đ)
   const surplusRate = currentWageV > 0 ? ((currentSurplusM / currentWageV) * 100).toFixed(1) : '∞';
 
   const gameRef = useRef({
     appOnline: true,
-    walletDeposit: 200,
+    walletDeposit: 300,
     energy: 100,
-    driverWage: 85,
+    driverWage: 50,
     driverCost: 0,
+    unpaidWearCost: 0,
+    totalKmDriven: 0,
     completedOrders: 0,
     rating: 4.95,
     acceptanceRate: 96,
     bikeHealth: 100,
-    platformCutRate: 0.25,
+    platformCutRate: 0.272,
     surplusM: 0,
     algoSpeed: 1.0,
     algoLevel: 1,
-    currentOrder: { name: '🍛 Cơm Tấm', distance: 4.8, price: 85, vehicleCost: 24, shopKey: 'restaurant', custKey: 'customerA' },
+    currentOrder: { name: '🍛 Cơm Tấm', distance: 2.8, codFoodPrice: 55, price: 16.0, vehicleCost: 3.8, shopKey: 'restaurant', custKey: 'customerA' },
     gasCrisis: false,
     weather: 'clear',
     isNight: false,
@@ -177,9 +198,9 @@ export default function GigEconomy2D() {
     isStrike: false,
     isBatchedOrder: false,
     missionState: 'idle',
-    targetPrice: 85,
-    targetCost: 24,
-    targetDrain: 12,
+    targetPrice: 16.0,
+    targetCost: 3.8,
+    targetDrain: 8,
     hasFood: false
   });
 
@@ -191,6 +212,8 @@ export default function GigEconomy2D() {
       energy,
       driverWage,
       driverCost,
+      unpaidWearCost,
+      totalKmDriven,
       completedOrders,
       rating,
       acceptanceRate,
@@ -209,10 +232,10 @@ export default function GigEconomy2D() {
       missionState,
       targetPrice: gameRef.current.targetPrice || currentOrder.price,
       targetCost: gameRef.current.targetCost || currentOrder.vehicleCost,
-      targetDrain: gameRef.current.targetDrain || 12,
+      targetDrain: gameRef.current.targetDrain || 8,
       hasFood
     };
-  }, [appOnline, walletDeposit, energy, driverWage, driverCost, completedOrders, rating, acceptanceRate, bikeHealth, platformCutRate, surplusM, algoSpeed, algoLevel, currentOrder, gasCrisis, weather, isNight, autoDispatch, isStrike, isBatchedOrder, missionState, hasFood]);
+  }, [appOnline, walletDeposit, energy, driverWage, driverCost, unpaidWearCost, totalKmDriven, completedOrders, rating, acceptanceRate, bikeHealth, platformCutRate, surplusM, algoSpeed, algoLevel, currentOrder, gasCrisis, weather, isNight, autoDispatch, isStrike, isBatchedOrder, missionState, hasFood]);
 
   const addLog = (msg) => {
     setLogList(prev => [msg, ...prev.slice(0, 5)]);
@@ -231,26 +254,48 @@ export default function GigEconomy2D() {
     customerB: 'Chung Cư Khách B (Khu 5 Nam)'
   };
 
+  // --- CÔNG THỨC TÍNH CƯỚC & CHI PHÍ THỰC TẾ SHIPPER VIỆT NAM ---
   const generateRandomOrder = (isNightShift = false, isBatched = false) => {
     const template = RANDOM_ORDER_TYPES[Math.floor(Math.random() * RANDOM_ORDER_TYPES.length)];
-    const distNoise = +(Math.random() * 1.5 - 0.75).toFixed(1);
-    const finalDist = Math.max(1.2, +(template.baseDist + distNoise).toFixed(1));
+    const distNoise = +(Math.random() * 1.2 - 0.5).toFixed(1);
+    const baseDist = Math.max(1.2, +(template.baseDist + distNoise).toFixed(1));
+    const finalDist = isBatched ? +(baseDist * 1.45).toFixed(1) : baseDist;
 
-    let randomPrice = Math.floor(Math.random() * (template.maxPrice - template.minPrice + 1)) + template.minPrice;
-    if (isNightShift) randomPrice = Math.round(randomPrice * 1.25);
-    if (isBatched) randomPrice = Math.round(randomPrice * 1.7);
+    // 1. Tính Cước giao hàng (W) chuẩn GrabFood/ShopeeFood tại VN:
+    // - 2km đầu tiên: 15.000đ (tức 15.0k)
+    // - Mỗi km tiếp theo: +4.200đ/km (tức 4.2k/km)
+    let shippingFee = 15.0 + Math.max(0, finalDist - 2.0) * 4.2;
 
-    let cost = Math.round(randomPrice * (0.26 + Math.random() * 0.05));
-    if (gameRef.current.gasCrisis) cost = Math.round(cost * 1.4);
+    // Nếu là Đơn Ghép (2 đơn): Sàn thu của 2 khách nhưng chỉ cộng thêm cho tài xế ~6.000đ (ép giá cước trên km)!
+    if (isBatched) {
+      shippingFee = 15.0 + Math.max(0, baseDist - 2.0) * 4.2 + 6.5;
+    }
+
+    // Phụ phí ban đêm (+5.000đ) hoặc mưa bão (+4.000đ - 8.000đ)
+    if (isNightShift || gameRef.current.isNight) shippingFee += 5.0;
+    if (gameRef.current.weather === 'rain') shippingFee += 4.0;
+    if (gameRef.current.weather === 'storm') shippingFee += 8.0;
+
+    shippingFee = +(Math.round(shippingFee * 2) / 2).toFixed(1); // Làm tròn 500đ (VD: 16.5 = 16.500đ)
+
+    // 2. Tính Chi phí xăng RON95 + nhớt + khấu hao xe + 4G thực tế (c):
+    // Quãng đường thực tế tài xế phải chạy = Quãng đường giao + ~0.8km chạy không tải tới quán
+    const realKmDriven = finalDist + 0.8;
+    // Trung bình 1.250đ/km (xăng 600đ/km + nhớt/lốp/nhông sên/khấu hao xe/4G 650đ/km)
+    let costPerKm = 1.25;
+    if (gameRef.current.gasCrisis) costPerKm = 1.75; // Khi giá xăng RON95 tăng vọt lên >30.000đ/lít
+    const vehicleCost = +(realKmDriven * costPerKm).toFixed(1);
 
     const shopKey = template.shopKey;
     const custKey = isBatched ? 'customerB' : template.custKeys[Math.floor(Math.random() * template.custKeys.length)];
 
     return {
       name: isBatched ? `[Ghép 2 Đơn] ${template.name}` : template.name,
-      distance: isBatched ? +(finalDist * 1.45).toFixed(1) : finalDist,
-      price: randomPrice,
-      vehicleCost: cost,
+      distance: finalDist,
+      realKm: +realKmDriven.toFixed(1),
+      codFoodPrice: isBatched ? template.codFoodPrice * 2 : template.codFoodPrice,
+      price: shippingFee,
+      vehicleCost,
       shopKey,
       shopLabel: SHOP_LABELS[shopKey],
       custKey,
@@ -331,39 +376,37 @@ export default function GigEconomy2D() {
 
     const map = {
       // --- HÀNG 1 (BẮC, Y: 30) - KHU ẨM THỰC & QUYỀN LỰC THUẬT TOÁN ---
-      restaurant:   { x: 25,  y: 30,  w: 120, h: 75, emoji: '🍜', label: 'Quán Cơm Phở', color: '#f59e0b', sub: '👩‍🍳 Role Chủ Quán' },
-      milkTeaShop:  { x: 220, y: 30,  w: 115, h: 75, emoji: '🧋', label: 'Trà Sữa & Bánh Mì', color: '#ec4899', sub: '🧑‍🍳 Role Pha Chế' },
-      teaStall:     { x: 410, y: 30,  w: 115, h: 75, emoji: '☕', label: 'Quán Trà Đá', color: '#10b981', sub: 'Miễn phí +Thể lực' },
-      park:         { x: 600, y: 30,  w: 115, h: 75, emoji: '🌳', label: 'Công Viên Shipper', color: '#22c55e', sub: 'Nghỉ trưa hồi sức' },
-      platformHQ:   { x: 790, y: 22,  w: 125, h: 83, emoji: '🏢', label: 'AI Platform (m)', color: '#8b5cf6', sub: 'Trụ sở tư bản số' },
+      restaurant:   { x: 25,  y: 30,  w: 120, h: 75, emoji: '🍜', label: 'Quán Cơm Phở', color: '#f59e0b', sub: '👩‍🍳 Ứng COD 45-65k' },
+      milkTeaShop:  { x: 220, y: 30,  w: 115, h: 75, emoji: '🧋', label: 'Trà Sữa & Bánh Mì', color: '#ec4899', sub: '🧑‍🍳 Ứng COD 25-45k' },
+      teaStall:     { x: 410, y: 30,  w: 115, h: 75, emoji: '☕', label: 'Trà Đá Vỉa Hè', color: '#10b981', sub: 'Miễn phí 0đ (+Sức)' },
+      park:         { x: 600, y: 30,  w: 115, h: 75, emoji: '🌳', label: 'Công Viên Shipper', color: '#22c55e', sub: 'Nghỉ trưa 0đ' },
+      platformHQ:   { x: 790, y: 22,  w: 125, h: 83, emoji: '🏢', label: 'AI Platform (m)', color: '#8b5cf6', sub: 'Thu 27.2% mỗi đơn' },
 
       // --- HÀNG 2 (TRUNG TÂM, Y: 235) - HẠ TẦNG, BẢO DƯỠNG & TIỆN ÍCH ---
-      gasStation:   { x: 25,  y: 235, w: 120, h: 75, emoji: '⛽', label: 'Trạm Xe/Xăng', color: '#d97706', sub: 'Đổ xăng/Sửa xe (c)' },
-      logisticsHub: { x: 220, y: 235, w: 115, h: 75, emoji: '📦', label: 'Kho Sàn & Sạc Điện', color: '#ea580c', sub: 'Trạm bảo dưỡng xe' },
-      policePoint:  { x: 410, y: 235, w: 115, h: 75, emoji: '🚨', label: 'Chốt CSGT & Đèn Đỏ', color: '#ef4444', sub: 'Role CSGT tuần tra' },
-      convenience:  { x: 600, y: 235, w: 115, h: 75, emoji: '🏪', label: 'Tiện Lợi 24h', color: '#06b6d4', sub: 'Bò Húc siêu hồi sức' },
+      gasStation:   { x: 25,  y: 235, w: 120, h: 75, emoji: '⛽', label: 'Cây Xăng RON95', color: '#d97706', sub: '23.5k/L & Thay nhớt' },
+      logisticsHub: { x: 220, y: 235, w: 115, h: 75, emoji: '📦', label: 'Tiệm Sửa Xe Máy', color: '#ea580c', sub: 'Vá lốp/Bảo dưỡng (c)' },
+      policePoint:  { x: 410, y: 235, w: 115, h: 75, emoji: '🚨', label: 'Chốt CSGT Ngã Tư', color: '#ef4444', sub: 'Vượt đèn phạt 150k' },
+      convenience:  { x: 600, y: 235, w: 115, h: 75, emoji: '🏪', label: 'Circle K / 24h', color: '#06b6d4', sub: 'Bò Húc 12.000đ/lon' },
       hospital:     { x: 790, y: 235, w: 125, h: 75, emoji: '🏥', label: 'Bệnh Viện Đa Khoa', color: '#f43f5e', sub: '👩‍⚕️ Khách Y Tế/BN' },
 
       // --- HÀNG 3 (NAM, Y: 445) - ĐÔ THỊ DÂN CƯ, CÔNG ĐOÀN & GIAO HÀNG ---
       university:   { x: 25,  y: 445, w: 120, h: 75, emoji: '🏫', label: 'Đại Học & KTX', color: '#3b82f6', sub: '🧑‍🎓 Khách Sinh Viên' },
-      pizzaShop:    { x: 220, y: 445, w: 115, h: 75, emoji: '🍕', label: 'Pizza & Fastfood', color: '#f97316', sub: '👨‍🍳 Quản Lý Quán' },
-      unionHub:     { x: 410, y: 445, w: 115, h: 75, emoji: '🤝', label: 'Hội Quán Shipper', color: '#10b981', sub: 'Role Công Đoàn 5⭐' },
-      customerA:    { x: 600, y: 445, w: 115, h: 75, emoji: '🏠', label: 'Nhà Khách Hàng A', color: '#06b6d4', sub: '🙋‍♀️ Khách Gia Đình' },
-      customerB:    { x: 790, y: 445, w: 125, h: 75, emoji: '🏢', label: 'Chung Cư Khách B', color: '#8b5cf6', sub: '🧑‍💼 Khách Chung Cư' }
+      pizzaShop:    { x: 220, y: 445, w: 115, h: 75, emoji: '🍕', label: 'Pizza & Gà Rán', color: '#f97316', sub: '👨‍🍳 Ứng COD 95-185k' },
+      unionHub:     { x: 410, y: 445, w: 115, h: 75, emoji: '🤝', label: 'Hội Quán Shipper', color: '#10b981', sub: 'Công Đoàn hồi 5.0⭐' },
+      customerA:    { x: 600, y: 445, w: 115, h: 75, emoji: '🏠', label: 'Nhà Khách Hàng A', color: '#06b6d4', sub: '🙋‍♀️ Hẻm Dân Cư' },
+      customerB:    { x: 790, y: 445, w: 125, h: 75, emoji: '🏢', label: 'Chung Cư Khách B', color: '#8b5cf6', sub: '🧑‍💼 Giao Sảnh G' }
     };
     gameRef.current.map = map;
 
-    // 6 shipper đồng nghiệp AI tuần tra khắp 2 đại lộ ngang & các trục dọc
     const aiShippers = [
       { x: 80,  y: 155, vx: 2.2, vy: 0, color: '#22c55e', brand: 'Grab' },
       { x: 850, y: 175, vx: -2.0, vy: 0, color: '#f97316', brand: 'Shopee' },
       { x: 100, y: 370, vx: 2.1, vy: 0, color: '#eab308', brand: 'Be' },
-      { x: 820, y: 390, vx: -2.3, vy: 0, color: '#ef4444', brand: 'Baemin' },
+      { x: 820, y: 390, vx: -2.3, vy: 0, color: '#ef4444', brand: 'XanhSM' },
       { x: 375, y: 60,  vx: 0, vy: 1.8, color: '#06b6d4', brand: 'Ahamove' },
-      { x: 565, y: 500, vx: 0, vy: -1.9, color: '#10b981', brand: 'Gojek' }
+      { x: 565, y: 500, vx: 0, vy: -1.9, color: '#10b981', brand: 'Grab' }
     ];
 
-    // Người đi bộ qua đường (Pedestrians)
     const pedestrians = [
       { x: 185, y: 120, vy: 0.6, miny: 105, maxy: 200 },
       { x: 755, y: 190, vy: -0.5, miny: 110, maxy: 205 },
@@ -393,24 +436,22 @@ export default function GigEconomy2D() {
 
     const spawnDeliveryCash = (startX, startY, orderPriceVal, tipVal = 0) => {
       playSound('coin');
-      const mVal = orderPriceVal * gameRef.current.platformCutRate;
-      const driverGross = orderPriceVal - mVal + tipVal;
+      const mVal = +(orderPriceVal * gameRef.current.platformCutRate).toFixed(1);
+      const driverGross = +(orderPriceVal - mVal + tipVal).toFixed(1);
 
-      // Tiền nhận liền tay bay về phía Ví tài xế
       for (let i = 0; i < 7; i++) {
         particles.push({
           x: startX, y: startY,
           targetX: 80, targetY: 15,
-          color: '#10b981', text: i === 0 ? `+${driverGross.toFixed(0)}k vào Ví Shipper` : null,
+          color: '#10b981', text: i === 0 ? `+${formatVND(driverGross)} vào Ví` : null,
           progress: 0, speed: 0.025 + Math.random() * 0.015
         });
       }
-      // Tiền thặng dư sàn cắt bay về phía trụ sở AI Platform
       for (let i = 0; i < 7; i++) {
         particles.push({
           x: startX, y: startY,
           targetX: map.platformHQ.x + 50, targetY: map.platformHQ.y + 20,
-          color: '#8b5cf6', text: i === 0 ? `-${mVal.toFixed(0)}k (Sàn thu m)` : null,
+          color: '#8b5cf6', text: i === 0 ? `-${formatVND(mVal)} (Sàn cắt)` : null,
           progress: 0, speed: 0.02 + Math.random() * 0.015
         });
       }
@@ -421,7 +462,7 @@ export default function GigEconomy2D() {
         particles.push({
           x: startX, y: startY,
           targetX: map.gasStation.x + 50, targetY: map.gasStation.y + 30,
-          color: '#d97706', text: i === 0 ? `-${repairCost}k (xăng/xe c)` : null,
+          color: '#d97706', text: i === 0 ? `-${formatVND(repairCost)} (Xăng/Nhớt c)` : null,
           progress: 0, speed: 0.025 + Math.random() * 0.015
         });
       }
@@ -445,7 +486,6 @@ export default function GigEconomy2D() {
     window.addEventListener('keydown', onKD);
     window.addEventListener('keyup', onKU);
 
-    // Chức năng di chuyển tới bất kỳ địa điểm nào trên bản đồ
     window.__driveToLandmark = (key) => {
       const lm = map[key];
       if (!lm) return;
@@ -463,12 +503,10 @@ export default function GigEconomy2D() {
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
 
-      // Kiểm tra xem người chơi có click vào tòa nhà nào trong 15 tòa nhà không
       for (const [key, lm] of Object.entries(map)) {
         if (cx >= lm.x && cx <= lm.x + lm.w && cy >= lm.y && cy <= lm.y + lm.h) {
           bike.targetX = lm.x + Math.round(lm.w / 2);
           bike.targetY = lm.y + Math.round(lm.h / 2);
-          // Nếu đang rảnh và click vào quán ăn -> nổ đơn luôn tại quán đó
           if (['restaurant', 'milkTeaShop', 'pizzaShop'].includes(key) && gameRef.current.missionState === 'idle') {
             window.__ringOrder(false, key);
           } else {
@@ -483,7 +521,7 @@ export default function GigEconomy2D() {
     };
     canvas.addEventListener('click', onCanvasClick);
 
-    // --- BƯỚC 0: NỔ ĐƠN NGẪU NHIÊN TRÊN APP SHIPPER (CHỜ NHẬN ĐƠN HOẶC NHẬN NGAY) ---
+    // --- BƯỚC 0: NỔ ĐƠN NGẪU NHIÊN TRÊN APP SHIPPER ---
     window.__ringOrder = (isNightShift = false, forcedShopKey = null) => {
       if (gameRef.current.isStrike) {
         addLog('✊ Tài xế đang đình công tắt app! Nền tảng bị tê liệt hoàn toàn.');
@@ -493,12 +531,12 @@ export default function GigEconomy2D() {
         addLog('📴 Bạn đang TẮT APP (Offline)! Hãy gạt nút "BẬT APP" trên điện thoại để nhận đơn mới.');
         return;
       }
-      if (gameRef.current.energy < (isNightShift ? 15 : 10)) {
-        addLog('🛑 Tài xế kiệt sức! Hãy ghé Quán Trà Đá ☕, Công Viên 🌳 hoặc Tiện Lợi 24h 🏪 để hồi phục.');
+      if (gameRef.current.energy < (isNightShift ? 12 : 8)) {
+        addLog('🛑 Tài xế kiệt sức! Hãy ghé Trà Đá Vỉa Hè ☕ (0đ), Công Viên 🌳 hoặc Circle K 🏪 (Bò Húc 12.000đ) để hồi phục.');
         return;
       }
       if (gameRef.current.bikeHealth <= 15) {
-        addLog('🛠️ Xe máy hỏng hóc nặng! Cần ghé Trạm Xe ⛽ để bảo dưỡng trước khi chạy tiếp.');
+        addLog('🛠️ Xe máy cạn xăng / khô nhớt! Cần ghé Cây Xăng RON95 ⛽ để đổ xăng & bảo dưỡng trước khi chạy tiếp.');
         return;
       }
 
@@ -514,9 +552,11 @@ export default function GigEconomy2D() {
       gameRef.current.missionState = 'ringing';
       setMissionState('ringing');
 
-      addLog(`📲 <strong>TING TING! App nổ đơn mới:</strong> ${newOrder.name} (${newOrder.distance} km) • Lấy tại <strong>${newOrder.shopLabel}</strong> → Giao tới <strong>${newOrder.custLabel}</strong>. Bấm <strong>[Nhận Đơn]</strong> trên App!`);
+      const mCut = +(newOrder.price * gameRef.current.platformCutRate).toFixed(1);
+      const netDriver = +(newOrder.price - mCut - newOrder.vehicleCost).toFixed(1);
 
-      // Nếu đang bật Tự Động Ép Cuốc của thuật toán -> Tự nhận đơn sau 1.2 giây
+      addLog(`📲 <strong>TING TING! Đơn mới (${newOrder.distance} km):</strong> ${newOrder.name} • Cước ship: <strong>${formatVND(newOrder.price)}</strong> (Ứng tiền món COD: ${formatVND(newOrder.codFoodPrice)}) • Sau khi trừ phí sàn ${formatVND(mCut)} & xăng xe ${formatVND(newOrder.vehicleCost)}, thực lời <strong>+${formatVND(netDriver)}</strong>!`);
+
       clearTimeout(gameRef.current.ringTimer);
       if (gameRef.current.autoDispatch) {
         gameRef.current.ringTimer = setTimeout(() => {
@@ -525,12 +565,11 @@ export default function GigEconomy2D() {
       }
     };
 
-    // Giữ tương thích với các nút bấm nổ đơn nhanh
     window.__dispatchOrder = (isNightShift = false) => {
       window.__ringOrder(isNightShift, null);
     };
 
-    // --- BƯỚC 1: TÀI XẾ BẤM "NHẬN ĐƠN" TRÊN APP -> BẮT ĐẦU CHẠY TỚI ĐỊA CHỈ QUÁN ---
+    // --- BƯỚC 1: TÀI XẾ BẤM "NHẬN ĐƠN" TRÊN APP ---
     window.__acceptIncomingOrder = (orderOverride = null) => {
       const ord = orderOverride || gameRef.current.incomingOrder;
       if (!ord) return;
@@ -543,7 +582,7 @@ export default function GigEconomy2D() {
 
       gameRef.current.targetPrice = ord.price;
       gameRef.current.targetCost = ord.vehicleCost;
-      gameRef.current.targetDrain = Math.round((ord.distance * 2.0 + (ord.isNightShift ? 8 : 0)) * gameRef.current.algoSpeed);
+      gameRef.current.targetDrain = Math.round((ord.distance * 1.8 + (ord.isNightShift ? 6 : 0)) * gameRef.current.algoSpeed);
       if (gameRef.current.weather === 'rain') gameRef.current.targetDrain += 4;
       if (gameRef.current.weather === 'storm') gameRef.current.targetDrain += 8;
 
@@ -559,10 +598,10 @@ export default function GigEconomy2D() {
       bike.hasFood = false;
       setHasFood(false);
 
-      addLog(`✅ <strong>Đã nhận đơn trên App!</strong> Lộ trình GPS Bước 1/2: Đang chạy tới <strong>${pickShop.emoji} ${pickShop.label}</strong> để lấy món...`);
+      addLog(`✅ <strong>Đã nhận đơn!</strong> Bước 1/2: Chạy tới <strong>${pickShop.emoji} ${pickShop.label}</strong> ứng ${formatVND(ord.codFoodPrice)} lấy món...`);
     };
 
-    // --- TỪ CHỐI ĐƠN TRÊN APP -> TRỪ % NHẬN ĐƠN ---
+    // --- TỪ CHỐI ĐƠN TRÊN APP ---
     window.__declineIncomingOrder = () => {
       clearTimeout(gameRef.current.ringTimer);
       setIncomingOrder(null);
@@ -570,10 +609,10 @@ export default function GigEconomy2D() {
       gameRef.current.missionState = 'idle';
       setMissionState('idle');
       setAcceptanceRate(r => Math.max(50, r - 5));
-      addLog(`❌ <strong>Đã từ chối đơn:</strong> Thuật toán cảnh cáo và trừ -5% Tỷ lệ nhận đơn! (Nếu xuống thấp sẽ bị khóa tài khoản).`);
+      addLog(`❌ <strong>Đã bỏ qua đơn:</strong> Bị hệ thống trừ -5% Tỷ lệ nhận đơn! (Dưới 80% sẽ mất quyền nhận thưởng mốc ngày).`);
     };
 
-    // --- BƯỚC 2: TỚI QUÁN GẶP CHỦ QUÁN -> NHẬN MÓN XONG -> CHẠY ĐI GIAO CHO KHÁCH ---
+    // --- BƯỚC 2: TỚI QUÁN GẶP CHỦ QUÁN ---
     const finishPickup = () => {
       gameRef.current.missionState = 'to_customer';
       setMissionState('to_customer');
@@ -582,7 +621,7 @@ export default function GigEconomy2D() {
       const drop = gameRef.current.targetCustomer || map.customerA;
       bike.targetX = drop.x + 60;
       bike.targetY = drop.y + 40;
-      addLog(`📦 <strong>Đã nhận món tại quán!</strong> Lộ trình GPS Bước 2/2: Phóng xe tới địa chỉ người đặt tại <strong>${drop.emoji} ${drop.label}</strong>!`);
+      addLog(`📦 <strong>Đã lấy món tại quán!</strong> Bước 2/2: Chạy ${gameRef.current.currentOrder.distance} km tới <strong>${drop.emoji} ${drop.label}</strong> giao cho khách!`);
     };
 
     const openShopDialog = () => {
@@ -612,8 +651,8 @@ export default function GigEconomy2D() {
         setEnergy(e);
       }
       if (fx.wage) {
-        gameRef.current.driverWage += fx.wage;
-        setDriverWage(w => w + fx.wage);
+        gameRef.current.driverWage = +(gameRef.current.driverWage + fx.wage).toFixed(1);
+        setDriverWage(w => +(w + fx.wage).toFixed(1));
       }
       if (fx.rating) setRating(r => Math.max(3.5, Math.min(5.0, +(r + fx.rating).toFixed(2))));
       if (fx.log) addLog(fx.log);
@@ -626,7 +665,7 @@ export default function GigEconomy2D() {
       }, 1100);
     };
 
-    // --- BƯỚC 3: TỚI ĐỊA CHỈ NGƯỜI ĐẶT -> KHÁCH HÀNG RA NHẬN ĐƠN & CỘNG TIỀN VÍ ---
+    // --- BƯỚC 3: TỚI ĐỊA CHỈ NGƯỜI ĐẶT ---
     const openCustomerDialog = () => {
       if (gameRef.current.missionState !== 'to_customer') return;
       gameRef.current.missionState = 'at_customer';
@@ -650,39 +689,48 @@ export default function GigEconomy2D() {
       bike.hasFood = false;
       setHasFood(false);
 
-      const finalPrice = gameRef.current.targetPrice;
-      const m = finalPrice * gameRef.current.platformCutRate;
-      const driverGross = finalPrice - m + tipBonus; // Tiền về Ví Tài Xế ngay lập tức (chưa trừ xăng c)
+      const ord = gameRef.current.currentOrder;
+      const finalPrice = gameRef.current.targetPrice; // Cước ship W (VD: 16.0k)
+      const m = +(finalPrice * gameRef.current.platformCutRate).toFixed(1); // Sàn cắt 27.2% (VD: 4.4k)
+      const driverGross = +(finalPrice - m + tipBonus).toFixed(1); // Tiền về Ví trước khi đổ xăng
+      const tripWearCost = gameRef.current.targetCost; // Chi phí xăng + hao mòn tích lũy của cuốc này (VD: 3.8k)
+      const realNetProfit = +(driverGross - tripWearCost).toFixed(1); // Thực lãi ròng đút túi
 
       const nextEnergy = Math.max(0, gameRef.current.energy - gameRef.current.targetDrain);
-      const nextWage = gameRef.current.driverWage + driverGross;
-      const nextSurplus = gameRef.current.surplusM + m;
+      const nextWage = +(gameRef.current.driverWage + driverGross).toFixed(1);
+      const nextUnpaidWear = +(gameRef.current.unpaidWearCost + tripWearCost).toFixed(1);
+      const nextKm = +(gameRef.current.totalKmDriven + (ord.realKm || ord.distance + 0.8)).toFixed(1);
+      const nextSurplus = +(gameRef.current.surplusM + m).toFixed(1);
       const nextOrders = gameRef.current.completedOrders + (gameRef.current.isBatchedOrder ? 2 : 1);
 
-      const wear = Math.min(24, Math.round(5 + (gameRef.current.currentOrder.distance || 3) * 1.4));
-      const nextHealth = Math.max(0, gameRef.current.bikeHealth - wear);
+      const wearPct = Math.min(22, Math.round(4 + (ord.distance || 3) * 1.5));
+      const nextHealth = Math.max(0, gameRef.current.bikeHealth - wearPct);
 
       gameRef.current.energy = nextEnergy;
       gameRef.current.driverWage = nextWage;
+      gameRef.current.unpaidWearCost = nextUnpaidWear;
+      gameRef.current.totalKmDriven = nextKm;
       gameRef.current.surplusM = nextSurplus;
       gameRef.current.completedOrders = nextOrders;
       gameRef.current.bikeHealth = nextHealth;
 
       setEnergy(nextEnergy);
       setDriverWage(nextWage);
+      setUnpaidWearCost(nextUnpaidWear);
+      setTotalKmDriven(nextKm);
       setSurplusM(nextSurplus);
       setCompletedOrders(nextOrders);
       setBikeHealth(nextHealth);
 
-      // Thưởng mốc 10 đơn
+      // Thưởng mốc 10 đơn thực tế tại VN (+50.000đ thưởng vượt mốc ngày)
       setQuestOrders(q => {
         const n = q + (gameRef.current.isBatchedOrder ? 2 : 1);
         if (n >= 10) {
-          if (Math.random() < 0.65) {
-            addLog('🎉 <strong>Thưởng mốc 10 đơn:</strong> Sàn cộng +150k tiền thưởng chuyên cần vào Ví!');
-            setDriverWage(w => w + 150);
+          if (gameRef.current.acceptanceRate >= 85 && Math.random() < 0.7) {
+            addLog('🎉 <strong>Đạt mốc 10 đơn/ngày:</strong> Nhận thưởng điểm chuyên cần <strong>+50.000đ</strong> vào Ví!');
+            setDriverWage(w => +(w + 50).toFixed(1));
           } else {
-            addLog('⚠️ <strong>Thuật toán bóp thưởng mốc:</strong> Cuốc thứ 10 bị hệ thống báo lỗi GPS sát 23h59! Mất thưởng 150k.');
+            addLog('⚠️ <strong>Mất thưởng mốc 10 đơn (50.000đ):</strong> Do tỷ lệ nhận đơn thấp hoặc hệ thống ngưng nổ đơn sát giờ chốt ca!');
           }
           return 0;
         }
@@ -690,10 +738,15 @@ export default function GigEconomy2D() {
       });
 
       spawnDeliveryCash(bike.x, bike.y, finalPrice, tipBonus);
-      addLog(`💰 <strong>Hoàn tất giao hàng!</strong> Khách trả ${finalPrice}k → Sàn thu chiết khấu <strong>-${m.toFixed(0)}k (m)</strong> → Ví Shipper cộng liền <strong>+${driverGross.toFixed(0)}k</strong>${tipBonus > 0 ? ` (gồm ${tipBonus}k tip)` : ''}! Độ bền xe còn ${nextHealth}%.`);
+      addLog(
+        `💰 <strong>Xong cuốc ${ord.distance}km:</strong> Cước <strong>${formatVND(finalPrice)}</strong> ` +
+        `| Sàn thu 27.2%: <strong style="color:#a78bfa">-${formatVND(m)}</strong> ` +
+        `| Ví cộng: <strong style="color:#34d399">+${formatVND(driverGross)}</strong>${tipBonus > 0 ? ` (gồm tip ${formatVND(tipBonus)})` : ''} ` +
+        `| Trừ xăng & hao mòn xe (~${formatVND(tripWearCost)}) → <strong>Thực lời ròng chỉ còn ${formatVND(realNetProfit)}!</strong>`
+      );
 
       if (nextHealth <= 25) {
-        addLog(`⚠️ <strong>Xe báo bảo dưỡng (${nextHealth}%):</strong> Hãy lái xe ghé ⛽ Trạm Xăng hoặc 📦 Kho Sạc để đổ xăng/sửa xe!`);
+        addLog(`⚠️ <strong>Xe cạn xăng & dơ nhớt (${nextHealth}%):</strong> Hãy ghé ⛽ Cây Xăng RON95 để đổ xăng & thay nhớt!`);
       }
 
       if (gameRef.current.autoDispatch && gameRef.current.appOnline && nextEnergy >= 10 && nextHealth > 15) {
@@ -725,13 +778,13 @@ export default function GigEconomy2D() {
     window.__restDriver = () => {
       bike.targetX = map.teaStall.x + 60;
       bike.targetY = map.teaStall.y + 40;
-      addLog('☕ Đang di chuyển đến Quán Trà Đá để nghỉ ngơi hồi phục thể lực miễn phí.');
+      addLog('☕ Đang di chuyển đến Quán Trà Đá Vỉa Hè (miễn phí 0đ) để nghỉ ngơi hồi phục thể lực.');
     };
 
     window.__repairBike = () => {
       bike.targetX = map.gasStation.x + 50;
       bike.targetY = map.gasStation.y + 35;
-      addLog('🔧 Đang di chuyển vào Trạm Xe/Xăng để đổ xăng & bảo dưỡng xe.');
+      addLog('⛽ Đang di chuyển vào Cây Xăng RON95 / Tiệm Sửa Xe để đổ xăng & bảo dưỡng.');
     };
 
     let animId;
@@ -769,11 +822,10 @@ export default function GigEconomy2D() {
       ctx.fillStyle = 'rgba(139, 92, 246, 0.05)';
       ctx.fillRect(775, 8, Math.max(150, w - 785), h - 16);
 
-      // Tên các khu vực (Subtle Headers)
       ctx.font = 'bold 9px system-ui';
       ctx.fillStyle = '#f59e0b99'; ctx.textAlign = 'center'; ctx.fillText('🍜 KHU 1: ẨM THỰC & ĐẠI HỌC', 85, 18);
-      ctx.fillStyle = '#ec489999'; ctx.fillText('🧋 KHU 2: ĂN VẶT & TRẠM XE', 277, 18);
-      ctx.fillStyle = '#10b98199'; ctx.fillText('☕ KHU 3: LAO ĐỘNG & CÔNG ĐOÀN', 467, 18);
+      ctx.fillStyle = '#ec489999'; ctx.fillText('🧋 KHU 2: ĂN VẶT & XĂNG XE', 277, 18);
+      ctx.fillStyle = '#10b98199'; ctx.fillText('☕ KHU 3: TRÀ ĐÁ, CSGT & CÔNG ĐOÀN', 467, 18);
       ctx.fillStyle = '#22c55e99'; ctx.fillText('🌳 KHU 4: CÔNG VIÊN & DÂN CƯ', 657, 18);
       ctx.fillStyle = '#a78bfa99'; ctx.fillText('🏢 KHU 5: ĐÔ THỊ CÔNG NGHỆ', 852, 18);
 
@@ -865,7 +917,7 @@ export default function GigEconomy2D() {
       drawLandmark(ctx, map.customerA.x, map.customerA.y, map.customerA.w, map.customerA.h, map.customerA.emoji, map.customerA.label, map.customerA.color, map.customerA.sub);
       drawLandmark(ctx, map.customerB.x, map.customerB.y, map.customerB.w, map.customerB.h, map.customerB.emoji, map.customerB.label, map.customerB.color, map.customerB.sub);
 
-      // --- VẼ ĐƯỜNG DẪN ĐỊNH VỊ GPS TRÊN BẢN ĐỒ KHI ĐANG CHẠY ĐƠN ---
+      // --- VẼ ĐƯỜNG DẪN ĐỊNH VỊ GPS TRÊN BẢN ĐỒ ---
       if (gameRef.current.missionState === 'to_restaurant' && gameRef.current.targetShop) {
         const ts = gameRef.current.targetShop;
         const tx = ts.x + ts.w / 2;
@@ -881,7 +933,7 @@ export default function GigEconomy2D() {
       // --- ĐIỀU KHIỂN & CHUYỂN ĐỘNG XE CỦA NGƯỜI CHƠI ---
       const inDialog = ['at_shop', 'picking_up', 'at_customer'].includes(gameRef.current.missionState);
       if (inDialog) {
-        // Đứng yên tương tác với Chủ quán hoặc Khách hàng
+        // Đứng yên tương tác
       } else if (keys.w || keys.s || keys.a || keys.d) {
         bike.targetX = bike.x; bike.targetY = bike.y;
         const spd = (gameRef.current.bikeHealth > 30 ? 4.2 : 2.5) * gameRef.current.algoSpeed;
@@ -905,27 +957,27 @@ export default function GigEconomy2D() {
         }
       }
 
-      // --- KIỂM TRA TỚI QUÁN LẤY ĐƠN (DÙ LÁI WASD HAY CLICK CHUỘT) ---
+      // --- KIỂM TRA TỚI QUÁN LẤY ĐƠN ---
       const tShop = gameRef.current.targetShop;
       if (tShop && gameRef.current.missionState === 'to_restaurant' &&
           Math.hypot(bike.x - (tShop.x + 60), bike.y - (tShop.y + 40)) < 45) {
         openShopDialog();
       }
 
-      // --- KIỂM TRA TỚI ĐỊA CHỈ KHÁCH GIAO HÀNG (DÙ LÁI WASD HAY CLICK CHUỘT) ---
+      // --- KIỂM TRA TỚI ĐỊA CHỈ KHÁCH GIAO HÀNG ---
       const tCust = gameRef.current.targetCustomer;
       if (tCust && gameRef.current.missionState === 'to_customer' &&
           Math.hypot(bike.x - (tCust.x + 60), bike.y - (tCust.y + 40)) < 45) {
         openCustomerDialog();
       }
 
-      // --- CƠ CHẾ KHU VỰC 1: HỒI THỂ LỰC (QUÁN TRÀ ĐÁ, CÔNG VIÊN HOẶC TIỆN LỢI 24H) ---
+      // --- CƠ CHẾ KHU VỰC 1: HỒI THỂ LỰC THỰC TẾ (TRÀ ĐÁ 0đ, CÔNG VIÊN 0đ, HOẶC BÒ HÚC CIRCLE K 12.000đ) ---
       const distToTea = Math.hypot(bike.x - (map.teaStall.x + 60), bike.y - (map.teaStall.y + 40));
       const distToPark = Math.hypot(bike.x - (map.park.x + 60), bike.y - (map.park.y + 40));
       const distToConv = Math.hypot(bike.x - (map.convenience.x + 60), bike.y - (map.convenience.y + 40));
       if (distToTea < 48 || distToPark < 48 || distToConv < 48) {
         if (gameRef.current.energy < 100) {
-          const healRate = distToConv < 48 ? 1.6 : 0.85;
+          const healRate = distToConv < 48 ? 1.8 : 0.85;
           const healedEnergy = Math.min(100, gameRef.current.energy + healRate);
           gameRef.current.energy = healedEnergy;
           setEnergy(healedEnergy);
@@ -936,21 +988,21 @@ export default function GigEconomy2D() {
               y: bike.y - 10,
               vy: -1.2,
               life: 1.0,
-              text: distToTea < 48 ? '+Trà đá ☕' : (distToPark < 48 ? '+Bóng mát 🌳' : '+Bò Húc ⚡')
+              text: distToTea < 48 ? '+Trà đá 0đ ☕' : (distToPark < 48 ? '+Nghỉ mát 🌳' : '+Bò Húc 12k ⚡')
             });
           }
 
           const now = Date.now();
-          if (now - lastHealSoundTime > 900) {
+          if (now - lastHealSoundTime > 1200) {
             playSound('heal');
             lastHealSoundTime = now;
-            if (distToConv < 48 && gameRef.current.driverWage >= 2) {
-              setDriverWage(w => Math.max(0, w - 2));
-              addLog(`🏪 <strong>Tiện Lợi 24h:</strong> Mua nước tăng lực (-2k từ Ví) hồi nhanh thể lực lên ${Math.round(healedEnergy)}%!`);
+            if (distToConv < 48 && gameRef.current.driverWage >= 12) {
+              setDriverWage(w => +(Math.max(0, w - 12)).toFixed(1));
+              addLog(`🏪 <strong>Circle K / Tiện Lợi 24h:</strong> Mua 1 lon Bò Húc giá thực tế <strong>-12.000đ</strong> từ Ví, hồi siêu tốc thể lực lên ${Math.round(healedEnergy)}%!`);
             } else {
               addLog(distToTea < 48
-                ? `☕ <strong>Quán Trà Đá Vỉa Hè:</strong> Uống trà đá miễn phí, thể lực tăng lên ${Math.round(healedEnergy)}%!`
-                : `🌳 <strong>Công Viên Shipper:</strong> Nghỉ lưng dưới bóng cây, thể lực tăng lên ${Math.round(healedEnergy)}%!`);
+                ? `☕ <strong>Trà Đá Vỉa Hè Miễn Phí (0đ):</strong> Ngồi nghỉ uống trà đá từ thiện dành cho shipper, thể lực lên ${Math.round(healedEnergy)}%!`
+                : `🌳 <strong>Công Viên Shipper (0đ):</strong> Dựng chân chống xe chợp mắt dưới bóng cây, thể lực lên ${Math.round(healedEnergy)}%!`);
             }
           }
         }
@@ -965,64 +1017,68 @@ export default function GigEconomy2D() {
           setRating(5.0);
           setAcceptanceRate(100);
           playSound('heal');
-          addLog('🤝 <strong>Role Công Đoàn (Hội Quán Shipper):</strong> Anh em tài xế hỗ trợ kháng cáo đánh giá oan! Phục hồi <strong>5.0 ⭐</strong> & <strong>100% Tỷ lệ nhận đơn</strong>!');
+          addLog('🤝 <strong>Role Công Đoàn (Hội Quán Shipper):</strong> Anh em hỗ trợ gửi đơn kháng cáo sao oan thành công! Phục hồi <strong>5.0 ⭐</strong> & <strong>100% Tỷ lệ nhận đơn</strong>!');
         }
       }
 
-      // --- CƠ CHẾ KHU VỰC 3: TRỤ SỞ AI PLATFORM (ROLE CHỦ SÀN TƯ BẢN SỐ) ---
+      // --- CƠ CHẾ KHU VỰC 3: TRỤ SỞ AI PLATFORM ---
       const distToHQ = Math.hypot(bike.x - (map.platformHQ.x + 62), bike.y - (map.platformHQ.y + 42));
       if (distToHQ < 48) {
         const now = Date.now();
         if (now - lastHQTime > 5000) {
           lastHQTime = now;
-          addLog(`🏢 <strong>Trụ Sở AI Platform (Khu 5):</strong> Sàn đã tích lũy <strong>${gameRef.current.surplusM.toFixed(0)}k VNĐ thặng dư (m)</strong> từ mồ hôi của bạn với mức chiết khấu ${(gameRef.current.platformCutRate * 100).toFixed(0)}%!`);
+          addLog(`🏢 <strong>Trụ Sở AI Platform:</strong> Sàn đã thu tổng cộng <strong>${formatVND(gameRef.current.surplusM)} (m)</strong> từ ${gameRef.current.completedOrders} cuốc xe của bạn (mức thu ${(gameRef.current.platformCutRate * 100).toFixed(1)}%/đơn)!`);
         }
       }
 
-      // --- CƠ CHẾ KHU VỰC 4: SỬA XE & BẢO DƯỠNG (CÂY XĂNG HOẶC KHO SẠC) ---
+      // --- CƠ CHẾ KHU VỰC 4: ĐỔ XĂNG RON95 & THAY NHỚT THỰC TẾ (CÂY XĂNG HOẶC TIỆM SỬA XE) ---
       const distToGas = Math.hypot(bike.x - (map.gasStation.x + 60), bike.y - (map.gasStation.y + 40));
       const distToHub = Math.hypot(bike.x - (map.logisticsHub.x + 60), bike.y - (map.logisticsHub.y + 40));
       if (distToGas < 48 || distToHub < 48) {
-        if (gameRef.current.bikeHealth < 100) {
+        if (gameRef.current.bikeHealth < 100 || gameRef.current.unpaidWearCost > 0) {
+          // Tính đúng số tiền xăng RON95 + hao mòn nhớt/lốp thực tế đã chạy (hoặc tối thiểu 15.000đ đổ xăng lẻ)
+          const wearAccumulated = gameRef.current.unpaidWearCost;
           const damage = 100 - gameRef.current.bikeHealth;
-          let repairCost = Math.max(12, Math.round(damage * 0.45));
-          if (gameRef.current.gasCrisis) repairCost = Math.round(repairCost * 1.4);
+          let repairCost = wearAccumulated > 0 ? +wearAccumulated.toFixed(1) : +(Math.max(10, damage * 0.4)).toFixed(1);
 
           if (gameRef.current.driverWage >= repairCost) {
             const now = Date.now();
             if (now - lastRepairTime > 2000) {
               lastRepairTime = now;
-              setDriverWage(w => w - repairCost);
-              setDriverCost(c => c + repairCost);
+              setDriverWage(w => +(w - repairCost).toFixed(1));
+              setDriverCost(c => +(c + repairCost).toFixed(1));
+              setUnpaidWearCost(0);
+              gameRef.current.unpaidWearCost = 0;
               setBikeHealth(100);
               gameRef.current.bikeHealth = 100;
               spawnRepairCash(bike.x, bike.y, repairCost);
               playSound('coin');
-              addLog(`⛽ <strong>Role Trạm Xăng & Bảo Dưỡng:</strong> Đã trích <strong>-${repairCost}k (chi phí c)</strong> từ Ví Tài Xế để đổ đầy bình xăng & thay nhớt. Độ bền xe đạt 100%!`);
+              addLog(`⛽ <strong>Cây Xăng RON95 & Bảo Dưỡng Xe:</strong> Đã thanh toán <strong>-${formatVND(repairCost)} (chi phí c)</strong> cho ${gameRef.current.totalKmDriven}km chạy xe (Xăng RON95 23.500đ/L + hao mòn nhớt/lốp). Xe đạt 100% độ bền!`);
             }
           } else {
             const now = Date.now();
             if (now - lastRepairTime > 3000) {
               lastRepairTime = now;
-              addLog(`❌ <strong>Ví không đủ tiền bảo dưỡng:</strong> Cần ${repairCost}k nhưng Ví bạn chỉ còn ${gameRef.current.driverWage.toFixed(0)}k!`);
+              addLog(`❌ <strong>Ví không đủ tiền đổ xăng/sửa xe:</strong> Cần <strong>${formatVND(repairCost)}</strong> nhưng Ví bạn chỉ còn <strong>${formatVND(gameRef.current.driverWage)}</strong>!`);
             }
           }
         }
       }
 
-      // --- CƠ CHẾ KHU VỰC 5: CHỐT CSGT (ROLE CẢNH SÁT GIAO THÔNG) ---
+      // --- CƠ CHẾ KHU VỰC 5: CHỐT CSGT THỰC TẾ ---
       const distToPolice = Math.hypot(bike.x - (map.policePoint.x + 60), bike.y - (map.policePoint.y + 40));
       if (distToPolice < 40) {
         const now = Date.now();
         if (now - lastPoliceTime > 4500) {
           lastPoliceTime = now;
-          if (gameRef.current.algoSpeed > 1.2 || Math.random() < 0.25) {
-            setDriverWage(w => Math.max(0, w - 80));
-            setDriverCost(c => c + 80);
+          if (gameRef.current.algoSpeed > 1.2 || Math.random() < 0.22) {
+            const fineAmount = 150; // 150.000đ (mất đứt cả ngày chạy ship)
+            setDriverWage(w => +(Math.max(0, w - fineAmount)).toFixed(1));
+            setDriverCost(c => +(c + fineAmount).toFixed(1));
             playSound('strike');
-            addLog('🚨 <strong>Role Chốt CSGT:</strong> Phạt hành chính <strong>-80k</strong> vì vượt đèn vàng khi chạy đua với thời gian của thuật toán! Sàn vô can, tài xế tự chịu.');
+            addLog('🚨 <strong>Chốt CSGT phạt -150.000đ:</strong> Lỗi vừa lái xe vừa bấm điện thoại nhận đơn / vượt đèn vàng! Đi tong tiền công của hơn 15 cuốc xe!');
           } else {
-            addLog('👮 <strong>Role Chốt CSGT:</strong> Đồng chí CSGT kiểm tra giấy tờ hợp lệ và nhắc nhở: "Chạy đơn nhớ giữ an toàn, đừng vì App giục mà vượt đèn đỏ nhé!"');
+            addLog('👮 <strong>Chốt CSGT:</strong> Đồng chí CSGT nhắc nhở: "Một cuốc xe lời có 8.000đ - 10.000đ thôi, đừng vượt đèn đỏ kẻo phạt 800k - 5 triệu nhé!"');
           }
         }
       }
@@ -1032,7 +1088,6 @@ export default function GigEconomy2D() {
 
       drawBike2D(ctx, bike.x, bike.y, bike.angle, bike.hasFood, gameRef.current.energy, gameRef.current.isNight);
 
-      // Draw Healing Particles
       for (let i = healingParticles.length - 1; i >= 0; i--) {
         const hp = healingParticles[i];
         hp.y += hp.vy;
@@ -1049,7 +1104,6 @@ export default function GigEconomy2D() {
         ctx.restore();
       }
 
-      // Weather
       if (gameRef.current.weather !== 'clear') {
         ctx.strokeStyle = gameRef.current.weather === 'storm' ? 'rgba(147, 197, 253, 0.8)' : 'rgba(186, 230, 253, 0.5)';
         ctx.lineWidth = gameRef.current.weather === 'storm' ? 2 : 1.5;
@@ -1061,7 +1115,6 @@ export default function GigEconomy2D() {
         });
       }
 
-      // Cash Particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.progress += p.speed;
@@ -1090,7 +1143,6 @@ export default function GigEconomy2D() {
 
   function drawGpsRoute(ctx, x1, y1, x2, y2, color, labelText) {
     ctx.save();
-    // Glowing animated dashed GPS line
     ctx.strokeStyle = color;
     ctx.lineWidth = 3.5;
     ctx.setLineDash([10, 6]);
@@ -1101,7 +1153,6 @@ export default function GigEconomy2D() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Pulsing target ring at destination
     const pulse = 18 + Math.sin(Date.now() * 0.008) * 6;
     ctx.strokeStyle = color;
     ctx.lineWidth = 2.5;
@@ -1109,7 +1160,6 @@ export default function GigEconomy2D() {
     ctx.arc(x2, y2, pulse, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Floating GPS Banner above destination
     ctx.fillStyle = '#0f172a';
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
@@ -1278,24 +1328,24 @@ export default function GigEconomy2D() {
   }
 
   const handleUpgradeAlgo = () => {
-    if (surplusM < 200) {
-      alert('Cần tích lũy tối thiểu 200k thặng dư để tái đầu tư AI!');
+    if (surplusM < 30) {
+      alert('Cần tích lũy tối thiểu 30.000đ thặng dư (m) từ các cuốc xe để nâng cấp AI!');
       return;
     }
     playSound('upgrade');
-    setSurplusM(s => s - 200);
+    setSurplusM(s => +(s - 30).toFixed(1));
     setAlgoLevel(l => l + 1);
-    setAlgoSpeed(sp => +(sp + 0.4).toFixed(1));
-    setPlatformCutRate(c => Math.min(0.40, +(c + 0.05).toFixed(2)));
-    addLog(`⚙️ Nâng cấp AI v${algoLevel + 1}.0: Chiết khấu tăng lên ${(platformCutRate + 0.05) * 100}%, cường độ ép đơn x${(algoSpeed + 0.4).toFixed(1)}!`);
+    setAlgoSpeed(sp => +(sp + 0.3).toFixed(1));
+    setPlatformCutRate(c => Math.min(0.38, +(c + 0.03).toFixed(3)));
+    addLog(`⚙️ Nâng cấp AI v${algoLevel + 1}.0: Chiết khấu sàn + thuế tăng lên ${((platformCutRate + 0.03) * 100).toFixed(1)}%, cường độ ép đơn x${(algoSpeed + 0.3).toFixed(1)}!`);
   };
 
   const handleGasCrisis = () => {
     setGasCrisis(g => {
       const next = !g;
       addLog(next 
-        ? '⛽ <strong>Khủng hoảng giá xăng:</strong> Chi phí xăng c tăng thêm 40%! Shipper tự gánh toàn bộ, tiền công v bị bóp nghẹt!'
-        : '⛽ Giá xăng bình ổn trở lại mức bình thường.');
+        ? '⛽ <strong>Giá xăng RON95 vượt 30.000đ/lít:</strong> Chi phí xăng & hao mòn tăng từ 1.250đ/km lên 1.750đ/km! Giá cước sàn không đổi, tài xế tự gánh!'
+        : '⛽ Giá xăng RON95 bình ổn về mức 23.500đ/lít (~1.250đ/km).');
       return next;
     });
   };
@@ -1305,27 +1355,30 @@ export default function GigEconomy2D() {
     setIsStrike(s => {
       const next = !s;
       if (next) {
-        addLog('✊ <strong>Đình công nổ ra:</strong> Toàn bộ tài xế tắt app! Nền tảng tê liệt, thặng dư m của sàn sụt về 0.');
+        addLog('✊ <strong>Đình công tập thể nổ ra:</strong> Anh em shipper đồng loạt tắt app phản đối chiết khấu 27.2% và đơn ghép giá rẻ!');
       } else {
-        addLog('🤝 Đình công kết thúc: Chủ sàn tạm hoãn tăng chiết khấu, shipper bật lại ứng dụng.');
+        addLog('🤝 Đình công kết thúc: Chủ sàn cam kết hỗ trợ phụ phí xăng dầu, shipper bật lại ứng dụng.');
       }
       return next;
     });
   };
 
   const handleBuyDrone = () => {
-    if (surplusM < 500) {
-      alert('Cần tích lũy tối thiểu 500k thặng dư tích lũy để mua Drone tự hành!');
+    if (surplusM < 80) {
+      alert('Cần tích lũy tối thiểu 80.000đ thặng dư (m) để đầu tư thử nghiệm Drone giao hàng!');
       return;
     }
-    setSurplusM(s => s - 500);
+    setSurplusM(s => +(s - 80).toFixed(1));
     setDroneCount(d => d + 1);
-    addLog('🤖 <strong>Tư bản tự động hóa (Cấu tạo hữu cơ c/v tăng vọt):</strong> Chủ sàn đầu tư Drone AI giao hàng, đe dọa sa thải hàng loạt shipper!');
+    addLog('🤖 <strong>Tư bản tự động hóa (Cấu tạo hữu cơ c/v tăng):</strong> Chủ sàn dùng thặng dư m trích từ shipper để mua Drone AI thay thế chính shipper!');
   };
 
   const pctC = (currentCost / currentPrice) * 100;
   const pctM = (currentSurplusM / currentPrice) * 100;
   const pctV = Math.max(0, 100 - pctC - pctM);
+
+  // Thu nhập ròng thực tế đã trừ cả hao mòn xăng xe chưa thanh toán
+  const realTakeHome = +(driverWage - unpaidWearCost).toFixed(1);
 
   return (
     <div style={{ maxWidth: '1040px', margin: '0 auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1334,15 +1387,15 @@ export default function GigEconomy2D() {
       <div style={{ background: '#111827', borderRadius: '16px', border: '1px solid #1f2937', padding: '14px 18px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#10b98120', color: '#34d399', border: '1px solid #10b98140' }}>
-              📱 CƠ CHẾ APP SHIP VÍ & ĐỊNH VỊ GPS
+            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#ef444420', color: '#f87171', border: '1px solid #ef444440' }}>
+              🇻🇳 BIỂU PHÍ THỰC TẾ SHIPPER VIỆT NAM (15.000đ/2km • Sàn thu 27.2%)
             </span>
             <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#6366f120', color: '#818cf8', border: '1px solid #6366f140' }}>
               W = c + v + m
             </span>
           </div>
-          <h1 style={{ fontSize: '19px', fontWeight: 'bold', margin: 0, color: '#f8fafc' }}>
-            🛵 Mô Phỏng Ship Ví: Bật App Nhận Đơn → Tới Quán Lấy Món → Giao Tận Tay Người Đặt
+          <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#f8fafc' }}>
+            🛵 Mô Phỏng Ship Ví Thực Tế Việt Nam: Cước 15k–35k/đơn, Khấu Hao Xăng Nhớt & Chiết Khấu 27.2%
           </h1>
         </div>
 
@@ -1351,13 +1404,13 @@ export default function GigEconomy2D() {
             onClick={() => setWeather(w => w === 'clear' ? 'rain' : w === 'rain' ? 'storm' : 'clear')}
             style={{ padding: '6px 12px', borderRadius: '8px', background: weather !== 'clear' ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #334155', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
           >
-            {weather === 'storm' ? '⛈️ Bão Lớn' : weather === 'rain' ? '🌧️ Mưa Rào' : '☀️ Nắng Ráo'}
+            {weather === 'storm' ? '⛈️ Mưa Bão (+8.000đ/đơn)' : weather === 'rain' ? '🌧️ Mưa Rào (+4.000đ/đơn)' : '☀️ Nắng Ráo'}
           </button>
           <button
             onClick={() => setIsNight(n => !n)}
             style={{ padding: '6px 12px', borderRadius: '8px', background: isNight ? '#4338ca' : '#1e293b', color: '#fff', border: '1px solid #334155', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
           >
-            {isNight ? '🌙 Ban Đêm (+25%)' : '☀️ Ban Ngày'}
+            {isNight ? '🌙 Ca Đêm (+5.000đ/đơn)' : '☀️ Ban Ngày'}
           </button>
           <button
             onClick={handleToggleStrike}
@@ -1368,59 +1421,62 @@ export default function GigEconomy2D() {
         </div>
       </div>
 
-      {/* --- BẢNG ĐIỀU KHIỂN APP SHIPPER & VÍ TÀI XẾ (SHIP VÍ) --- */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: '14px' }}>
+      {/* --- BẢNG ĐIỀU KHIỂN APP SHIPPER & VÍ TÀI XẾ THỰC TẾ VN --- */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.28fr 1fr', gap: '14px' }}>
 
         {/* CỘT TRÁI: MÀN HÌNH ĐIỆN THOẠI APP SHIPPER */}
         <div style={{ background: '#0f172a', borderRadius: '16px', border: appOnline ? '2px solid #10b981' : '2px solid #475569', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 8px 25px rgba(0,0,0,0.35)' }}>
           
-          {/* Thanh trạng thái App (Bật/Tắt App + Ví Ký Quỹ) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '18px' }}>📱</span>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc' }}>APP DRIVER PRO • VÍ SHIPPER</div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc' }}>
+                  APP TÀI XẾ CÔNG NGHỆ • VÍ KÝ QUỸ: <span style={{ color: '#38bdf8' }}>{formatVND(walletDeposit)}</span>
+                </div>
                 <div style={{ fontSize: '11px', color: appOnline ? '#34d399' : '#94a3b8' }}>
-                  {appOnline ? '🟢 Đang Bật App (Sẵn sàng nhận đơn)' : '⚪ Đang Tắt App (Nghỉ ngơi)'}
+                  {appOnline ? '🟢 Đang Bật App • Biểu phí: 15.000đ/2km đầu (+4.200đ/km)' : '⚪ Đang Tắt App (Offline)'}
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <button
-                onClick={() => {
-                  const next = !appOnline;
-                  setAppOnline(next);
-                  if (!next) {
-                    setIncomingOrder(null);
-                    if (missionState === 'ringing') setMissionState('idle');
-                    addLog('📴 Đã TẮT APP Shipper. Bạn sẽ không bị nổ đơn mới.');
-                  } else {
-                    addLog('🟢 Đã BẬT APP Shipper! Bấm "Tìm Đơn Random" để nhận cuốc ngay.');
-                  }
-                }}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '12px',
-                  background: appOnline ? '#10b981' : '#334155',
-                  color: '#fff'
-                }}
-              >
-                {appOnline ? '🟢 ĐANG BẬT APP' : '⚪ BẤM ĐỂ BẬT APP'}
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                const next = !appOnline;
+                setAppOnline(next);
+                if (!next) {
+                  setIncomingOrder(null);
+                  if (missionState === 'ringing') setMissionState('idle');
+                  addLog('📴 Đã TẮT APP Shipper. Ngưng nhận đơn mới.');
+                } else {
+                  addLog('🟢 Đã BẬT APP Shipper! Sẵn sàng nhận đơn theo biểu phí thực tế Việt Nam.');
+                }
+              }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '20px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '12px',
+                background: appOnline ? '#10b981' : '#334155',
+                color: '#fff'
+              }}
+            >
+              {appOnline ? '🟢 ĐANG BẬT APP' : '⚪ BẤM ĐỂ BẬT APP'}
+            </button>
           </div>
 
-          {/* Nội dung Màn hình App theo từng bước: Đang Rảnh / Đang Nổ Đơn / Đang Tới Quán / Đang Giao Khách */}
+          {/* Nội dung Màn hình App */}
           {missionState === 'ringing' && incomingOrder ? (
             <div style={{ background: '#1e293b', borderRadius: '12px', border: '2px solid #f59e0b', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fbbf24' }}>🔔 ĐƠN HÀNG RANDOM MỚI NỔ TRÊN APP!</span>
-                <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#34d399' }}>Cước W: {incomingOrder.price}.000đ ({incomingOrder.distance} km)</span>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fbbf24' }}>
+                  🔔 ĐƠN MỚI ({incomingOrder.distance} km) • Ứng COD: {formatVND(incomingOrder.codFoodPrice)}
+                </span>
+                <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#38bdf8' }}>
+                  Cước ship W: {formatVND(incomingOrder.price)}
+                </span>
               </div>
               <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#f8fafc' }}>{incomingOrder.name}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px' }}>
@@ -1433,17 +1489,27 @@ export default function GigEconomy2D() {
                   <div style={{ fontWeight: 'bold', color: '#38bdf8', marginTop: '2px' }}>{incomingOrder.custLabel}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#cbd5e1' }}>
-                <span>Sàn trừ Ví (m): <strong style={{ color: '#a78bfa' }}>-{(incomingOrder.price * platformCutRate).toFixed(0)}k</strong></span>
-                <span>Thực cộng vào Ví: <strong style={{ color: '#34d399' }}>+{(incomingOrder.price * (1 - platformCutRate)).toFixed(0)}k</strong></span>
-                <span>Xăng/hao mòn (c): <strong style={{ color: '#fbbf24' }}>~{incomingOrder.vehicleCost}k</strong></span>
+              {/* Bóc tách chi tiết từng đồng của cuốc xe tại VN */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', fontSize: '11px', background: '#111827', padding: '6px 8px', borderRadius: '8px', textAlign: 'center' }}>
+                <div>
+                  <span style={{ color: '#94a3b8', display: 'block', fontSize: '10px' }}>Sàn + Thuế ({(platformCutRate * 100).toFixed(1)}%):</span>
+                  <strong style={{ color: '#a78bfa' }}>-{formatVND(incomingOrder.price * platformCutRate)}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#94a3b8', display: 'block', fontSize: '10px' }}>Xăng RON95 & Xe (c):</span>
+                  <strong style={{ color: '#fbbf24' }}>-{formatVND(incomingOrder.vehicleCost)}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#94a3b8', display: 'block', fontSize: '10px' }}>Thực lời đút túi (v):</span>
+                  <strong style={{ color: '#34d399' }}>+{formatVND(incomingOrder.price * (1 - platformCutRate) - incomingOrder.vehicleCost)}</strong>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
                 <button
                   onClick={() => window.__acceptIncomingOrder && window.__acceptIncomingOrder()}
                   style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}
                 >
-                  ✅ NHẬN ĐƠN & CHẠY TỚI QUÁN
+                  ✅ NHẬN ĐƠN (LỜI RÒNG {formatVND(incomingOrder.price * (1 - platformCutRate) - incomingOrder.vehicleCost)})
                 </button>
                 <button
                   onClick={() => window.__declineIncomingOrder && window.__declineIncomingOrder()}
@@ -1457,12 +1523,14 @@ export default function GigEconomy2D() {
             <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #38bdf8', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#38bdf8' }}>
-                  {missionState === 'to_restaurant' && '🛵 BƯỚC 1/2: ĐANG CHẠY TỚI ĐỊA CHỈ QUÁN LẤY MÓN...'}
-                  {(missionState === 'at_shop' || missionState === 'picking_up') && '👩‍🍳 BƯỚC 1/2: ĐANG TƯƠNG TÁC VỚI CHỦ QUÁN NHẬN ĐƠN...'}
-                  {missionState === 'to_customer' && '🎯 BƯỚC 2/2: ĐÃ LẤY MÓN! ĐANG CHẠY ĐI GIAO CHO NGƯỜI ĐẶT...'}
-                  {missionState === 'at_customer' && '🙋‍♂️ BƯỚC 2/2: ĐANG GIAO HÀNG & NHẬN TIỀN TỪ KHÁCH...'}
+                  {missionState === 'to_restaurant' && '🛵 BƯỚC 1/2: ĐANG CHẠY TỚI QUÁN LẤY MÓN...'}
+                  {(missionState === 'at_shop' || missionState === 'picking_up') && '👩‍🍳 BƯỚC 1/2: ĐANG GẶP CHỦ QUÁN ỨNG TIỀN & NHẬN MÓN...'}
+                  {missionState === 'to_customer' && '🎯 BƯỚC 2/2: ĐANG CHẠY ĐI GIAO CHO NGƯỜI ĐẶT...'}
+                  {missionState === 'at_customer' && '🙋‍♂️ BƯỚC 2/2: ĐANG GIAO HÀNG & THU TIỀN KHÁCH...'}
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#f59e0b' }}>{currentOrder.price}k VNĐ</span>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#f59e0b' }}>
+                  Cước: {formatVND(currentOrder.price)} (COD: {formatVND(currentOrder.codFoodPrice)})
+                </span>
               </div>
               <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc' }}>{currentOrder.name} ({currentOrder.distance} km)</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
@@ -1480,10 +1548,10 @@ export default function GigEconomy2D() {
             <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px dashed #475569', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#e2e8f0' }}>
-                  {appOnline ? '📡 App đang quét tìm đơn hàng quanh bạn...' : '📴 App đang tắt (Offline)'}
+                  {appOnline ? '📡 App đang quét đơn quanh khu vực của bạn...' : '📴 App đang tắt (Offline)'}
                 </div>
                 <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
-                  Bấm nút bên cạnh hoặc click vào Quán Cơm / Trà Sữa / Pizza trên bản đồ để nổ đơn ngẫu nhiên!
+                  Cước thực tế tại VN: <strong>15.000đ – 38.000đ/đơn</strong> • Sàn trừ <strong>27.2%</strong> • Lời ròng ~<strong>8.000đ – 18.000đ/cuốc</strong>.
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -1499,7 +1567,7 @@ export default function GigEconomy2D() {
                   disabled={!appOnline || isStrike}
                   style={{ padding: '10px 12px', borderRadius: '10px', border: 'none', background: appOnline ? '#be123c' : '#334155', color: '#fff', fontWeight: 'bold', fontSize: '12px', cursor: appOnline ? 'pointer' : 'not-allowed' }}
                 >
-                  🌙 Đơn Ca Đêm
+                  🌙 Đơn Đêm (+5k)
                 </button>
               </div>
             </div>
@@ -1507,12 +1575,12 @@ export default function GigEconomy2D() {
 
         </div>
 
-        {/* CỘT PHẢI: VÍ TÀI XẾ (SHIP VÍ) & CHỦ SÀN */}
+        {/* CỘT PHẢI: BẢNG KÊ VÍ SHIPPER & CHI PHÍ THỰC TẾ VN */}
         <div style={{ background: '#111827', borderRadius: '16px', border: '1px solid #1f2937', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 'bold', color: '#34d399', fontSize: '13px' }}>💳 VÍ SHIPPER ({tier}) & THỂ LỰC</span>
-            <span style={{ fontSize: '12px', fontWeight: 'bold', color: energy > 30 ? '#34d399' : '#f87171' }}>
-              ⚡ Thể lực: {energy.toFixed(0)}% | 🛠️ Xe: {bikeHealth}%
+            <span style={{ fontWeight: 'bold', color: '#34d399', fontSize: '13px' }}>💳 VÍ THU NHẬP & CHI PHÍ THỰC TẾ</span>
+            <span style={{ fontSize: '11px', fontWeight: 'bold', color: energy > 30 ? '#34d399' : '#f87171' }}>
+              ⚡ Sức: {energy.toFixed(0)}% | 🛵 Xăng/Xe: {bikeHealth}% ({totalKmDriven}km)
             </span>
           </div>
 
@@ -1522,46 +1590,55 @@ export default function GigEconomy2D() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
             <div style={{ background: '#1e293b', padding: '8px 10px', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
-              <span style={{ color: '#94a3b8', fontSize: '11px' }}>Số dư Ví Shipper:</span>
-              <div style={{ fontWeight: 'bold', color: '#34d399', fontSize: '15px' }}>{driverWage.toFixed(0)}.000đ</div>
+              <span style={{ color: '#94a3b8', fontSize: '10px' }}>Số dư Ví (Chưa trừ hao mòn chờ):</span>
+              <div style={{ fontWeight: 'bold', color: '#34d399', fontSize: '14px' }}>{formatVND(driverWage)}</div>
+              <div style={{ fontSize: '10px', color: '#6ee7b7' }}>Thực còn: {formatVND(realTakeHome)}</div>
             </div>
             <div style={{ background: '#1e293b', padding: '8px 10px', borderRadius: '8px', borderLeft: '3px solid #f59e0b' }}>
-              <span style={{ color: '#94a3b8', fontSize: '11px' }}>Đã chi Xăng/Sửa xe (c):</span>
-              <div style={{ fontWeight: 'bold', color: '#fbbf24', fontSize: '15px' }}>{driverCost.toFixed(0)}.000đ</div>
+              <span style={{ color: '#94a3b8', fontSize: '10px' }}>Xăng RON95 & Nhớt đã trả (c):</span>
+              <div style={{ fontWeight: 'bold', color: '#fbbf24', fontSize: '14px' }}>{formatVND(driverCost)}</div>
+              <div style={{ fontSize: '10px', color: '#fcd34d' }}>Chờ đổ xăng/nhớt: ~{formatVND(unpaidWearCost)}</div>
             </div>
             <div style={{ background: '#1e293b', padding: '8px 10px', borderRadius: '8px', borderLeft: '3px solid #8b5cf6' }}>
-              <span style={{ color: '#94a3b8', fontSize: '11px' }}>Sàn đã thu (Thặng dư m):</span>
-              <div style={{ fontWeight: 'bold', color: '#a78bfa', fontSize: '14px' }}>{surplusM.toFixed(0)}k ({(platformCutRate * 100).toFixed(0)}%)</div>
+              <span style={{ color: '#94a3b8', fontSize: '10px' }}>Sàn + Thuế đã thu ({(platformCutRate * 100).toFixed(1)}%):</span>
+              <div style={{ fontWeight: 'bold', color: '#a78bfa', fontSize: '14px' }}>{formatVND(surplusM)}</div>
             </div>
             <div style={{ background: '#1e293b', padding: '8px 10px', borderRadius: '8px', borderLeft: '3px solid #38bdf8' }}>
-              <span style={{ color: '#94a3b8', fontSize: '11px' }}>Uy tín App ({completedOrders} đơn):</span>
-              <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '14px' }}>{rating.toFixed(2)} ⭐ ({acceptanceRate}%)</div>
+              <span style={{ color: '#94a3b8', fontSize: '10px' }}>Đã giao ({questOrders}/10 thưởng 50k):</span>
+              <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '14px' }}>{completedOrders} đơn • {rating.toFixed(2)}⭐</div>
             </div>
           </div>
         </div>
 
       </div>
 
-      {/* Live Formula Bar (W = c + v + m) */}
+      {/* Live Formula Bar (W = c + v + m) chuẩn tiền Việt Nam */}
       <div style={{ background: '#111827', borderRadius: '14px', border: '1px solid #1f2937', padding: '10px 16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '12px', fontWeight: 'bold' }}>
-          <span style={{ color: '#cbd5e1' }}>PHÂN TÍCH GIÁ TRỊ ĐƠN HÀNG W = c + v + m ({currentPrice}k VNĐ)</span>
-          <span style={{ padding: '2px 10px', borderRadius: '20px', background: '#6366f120', color: Number(surplusRate) >= 100 ? '#f43f5e' : '#818cf8', border: '1px solid #6366f140', fontSize: '12px' }}>
-            Tỷ suất bóc lột m' = m/v = {surplusRate}% {Number(surplusRate) >= 100 && '🔥'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '12px', fontWeight: 'bold', flexWrap: 'wrap', gap: '6px' }}>
+          <span style={{ color: '#cbd5e1' }}>
+            BÓC TÁCH 1 CUỐC SHIP TẠI VIỆT NAM ({displayOrder.distance} km) • CƯỚC W = {formatVND(currentPrice)}
+          </span>
+          <span style={{ padding: '2px 10px', borderRadius: '20px', background: '#6366f120', color: Number(surplusRate) >= 75 ? '#f43f5e' : '#818cf8', border: '1px solid #6366f140', fontSize: '12px' }}>
+            Tỷ suất bóc lột m' = m/v = {surplusRate}% {Number(surplusRate) >= 75 && '🔥 (Sàn ăn dày hơn công thực của tài xế!)'}
           </span>
         </div>
-        <div style={{ display: 'flex', height: '22px', borderRadius: '6px', overflow: 'hidden', fontWeight: 'bold', fontSize: '11px', color: '#fff', textAlign: 'center', lineHeight: '22px' }}>
-          <div style={{ width: `${pctC}%`, background: '#d97706' }}>c (Xăng/Xe): {currentCost}k ({pctC.toFixed(0)}%)</div>
-          <div style={{ width: `${pctV}%`, background: '#10b981' }}>v (Thực nuôi sống): {currentWageV.toFixed(0)}k ({pctV.toFixed(0)}%)</div>
-          <div style={{ width: `${pctM}%`, background: '#8b5cf6' }}>m (Sàn cắt): {currentSurplusM.toFixed(0)}k ({pctM.toFixed(0)}%)</div>
+        <div style={{ display: 'flex', height: '24px', borderRadius: '6px', overflow: 'hidden', fontWeight: 'bold', fontSize: '11px', color: '#fff', textAlign: 'center', lineHeight: '24px' }}>
+          <div style={{ width: `${pctC}%`, background: '#d97706' }}>c (Xăng/Nhớt): {formatVND(currentCost)} ({pctC.toFixed(0)}%)</div>
+          <div style={{ width: `${pctV}%`, background: '#10b981' }}>v (Thực lời bỏ túi): {formatVND(currentWageV)} ({pctV.toFixed(0)}%)</div>
+          <div style={{ width: `${pctM}%`, background: '#8b5cf6' }}>m (Sàn thu): {formatVND(currentSurplusM)} ({pctM.toFixed(0)}%)</div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8', marginTop: '6px', flexWrap: 'wrap' }}>
+          <span>⛽ <strong>c = {formatVND(currentCost)}</strong> (~1.250đ/km xăng RON95 + nhớt + khấu hao xe)</span>
+          <span>💵 <strong>Ví nhận = {formatVND(currentGrossDriver)}</strong> → Trừ xăng xe còn <strong>v = {formatVND(currentWageV)}</strong></span>
+          <span>🏢 <strong>m = {formatVND(currentSurplusM)}</strong> (Chiết khấu sàn + thuế {(platformCutRate * 100).toFixed(1)}%)</span>
         </div>
       </div>
 
-      {/* --- BẢNG CHỨC NĂNG RIÊNG CỦA 5 KHU VỰC & CÁC ROLE (BẤM ĐỂ CHẠY XE TỚI NGAY) --- */}
+      {/* --- BẢNG CHỨC NĂNG RIÊNG CỦA 5 KHU VỰC & CÁC ROLE --- */}
       <div style={{ background: '#111827', borderRadius: '14px', border: '1px solid #1f2937', padding: '10px 14px' }}>
         <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>🗺️ CHỨC NĂNG RIÊNG CỦA 5 KHU VỰC & CÁC ROLE TRONG THÀNH PHỐ (Click vào khu vực để lái xe tới tương tác):</span>
-          <span style={{ fontSize: '11px', color: '#38bdf8' }}>Hoặc dùng phím W/A/S/D & Click trực tiếp lên bản đồ</span>
+          <span>🗺️ 5 KHU VỰC & BẢNG GIÁ DỊCH VỤ THỰC TẾ CỦA SHIPPER VIỆT NAM (Click để lái xe tới):</span>
+          <span style={{ fontSize: '11px', color: '#38bdf8' }}>Trà đá: 0đ • Bò Húc: 12.000đ • Xăng RON95: 23.500đ/L • Phạt đèn đỏ: 150.000đ</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
           {ZONE_ROLES_INFO.map(z => (
@@ -1605,7 +1682,7 @@ export default function GigEconomy2D() {
                       {shopDialog.npc.name}
                     </span>
                     <span style={{ fontSize: '11px', background: '#1e293b', color: '#cbd5e1', padding: '2px 8px', borderRadius: '10px' }}>
-                      📍 Bước 1/2: Nhận đơn tại {shopDialog.shopLabel}
+                      📍 Bước 1/2: Ứng COD {formatVND(currentOrder.codFoodPrice)} tại {shopDialog.shopLabel}
                     </span>
                   </div>
                   <div style={{ color: '#f1f5f9', fontSize: '14px', marginTop: '6px', lineHeight: 1.45 }}>
@@ -1650,7 +1727,7 @@ export default function GigEconomy2D() {
                       {customerDialog.npc.name}
                     </span>
                     <span style={{ fontSize: '11px', background: '#1e293b', color: '#38bdf8', padding: '2px 8px', borderRadius: '10px' }}>
-                      🎯 Bước 2/2: Giao hàng tại {customerDialog.custLabel}
+                      🎯 Bước 2/2: Thu tiền món {formatVND(currentOrder.codFoodPrice)} + Cước {formatVND(currentOrder.price)}
                     </span>
                   </div>
                   <div style={{ color: '#f1f5f9', fontSize: '14px', marginTop: '6px', lineHeight: 1.45 }}>
@@ -1676,7 +1753,7 @@ export default function GigEconomy2D() {
               )}
               {customerDialog.reply && (
                 <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#34d399', marginTop: '8px' }}>
-                  💰 Giao hàng hoàn tất! Đang chuyển tiền vào Ví Shipper...
+                  💰 Giao hàng hoàn tất! Đang quyết toán tiền cước vào Ví Shipper...
                 </div>
               )}
             </div>
@@ -1684,7 +1761,7 @@ export default function GigEconomy2D() {
         )}
 
         <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(15, 23, 42, 0.88)', border: '1px solid #334155', borderRadius: '20px', padding: '4px 16px', fontSize: '11px', color: '#cbd5e1', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          📲 <em>Quy trình chuẩn: Bật App → Nhận Đơn Random → Đi theo đường định vị GPS tới Quán gặp Chủ Quán → Chạy tới Địa Chỉ Khách giao hàng!</em>
+          🇻🇳 <em>Thực tế Shipper VN: Cước 15.000đ/2km • Sàn thu 27.2% • Xăng RON95 + nhớt ~1.250đ/km → Mỗi cuốc 3km tài xế thực lời ~8.000đ - 10.000đ!</em>
         </div>
       </div>
 
@@ -1692,24 +1769,24 @@ export default function GigEconomy2D() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: '10px' }}>
         <button
           onClick={() => { if (window.__ringOrder) window.__ringOrder(false); }}
-          disabled={isStrike || !appOnline || energy < 10}
-          style={{ padding: '11px', background: '#059669', color: '#fff', border: 'none', borderRadius: '12px', cursor: (energy >= 10 && appOnline) ? 'pointer' : 'not-allowed', fontWeight: 'bold', fontSize: '12px' }}
+          disabled={isStrike || !appOnline || energy < 8}
+          style={{ padding: '11px', background: '#059669', color: '#fff', border: 'none', borderRadius: '12px', cursor: (energy >= 8 && appOnline) ? 'pointer' : 'not-allowed', fontWeight: 'bold', fontSize: '12px' }}
         >
-          📲 Bắn Đơn Random Lên App
+          📲 Bắn Đơn Thực Tế Lên App
         </button>
 
         <button
           onClick={() => { if (window.__restDriver) window.__restDriver(); }}
           style={{ padding: '11px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
         >
-          ☕ Ghé Trà Đá (Hồi Thể Lực)
+          ☕ Ghé Trà Đá Vỉa Hè (0đ)
         </button>
 
         <button
           onClick={() => { if (window.__repairBike) window.__repairBike(); }}
           style={{ padding: '11px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
         >
-          ⛽ Ghé Trạm Xăng/Sửa Xe (Trả c)
+          ⛽ Đổ Xăng RON95 & Nhớt (Trả c)
         </button>
 
         <button
@@ -1720,11 +1797,11 @@ export default function GigEconomy2D() {
         </button>
       </div>
 
-      {/* Advanced Gig & Capitalist Mechanics (Role Chủ Sàn AI) */}
+      {/* Advanced Gig & Capitalist Mechanics */}
       <div style={{ background: '#111827', borderRadius: '14px', border: '1px solid #1f2937', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>🏢 BẢNG ĐIỀU KHIỂN CỦA ROLE CHỦ SÀN AI (TƯ BẢN NỀN TẢNG - KHU 5):</span>
-          <span style={{ fontSize: '11px', color: '#a78bfa' }}>Quỹ thặng dư tích lũy m: {surplusM.toFixed(0)}k VNĐ | Drone AI: {droneCount} chiếc</span>
+        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <span>🏢 CHÍNH SÁCH TƯ BẢN NỀN TẢNG TẠI VIỆT NAM (ROLE CHỦ SÀN AI):</span>
+          <span style={{ fontSize: '11px', color: '#a78bfa' }}>Quỹ thặng dư m sàn đã rút: {formatVND(surplusM)} | Drone AI: {droneCount} chiếc</span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
@@ -1733,41 +1810,41 @@ export default function GigEconomy2D() {
               setIsBatchedOrder(b => {
                 const next = !b;
                 addLog(next 
-                  ? '📦📦 <strong>Bật Đơn Ghép (Batching):</strong> Ghép 2 khách trên 1 cuốc xe (giá x1.7, tăng cường độ bóc lột lao động)!'
+                  ? '📦📦 <strong>Bật Đơn Ghép Thực Tế VN:</strong> Ghép 2 đơn cùng lúc nhưng đơn thứ 2 chỉ cộng thêm +6.500đ cho tài xế, trong khi sàn thu đủ phí của 2 khách!'
                   : 'Đã tắt chế độ đơn ghép.');
                 return next;
               });
             }}
             style={{ padding: '10px', borderRadius: '10px', background: isBatchedOrder ? '#3b82f6' : '#1e293b', color: '#fff', border: '1px solid #334155', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', textAlign: 'left' }}
           >
-            {isBatchedOrder ? '✅ Đang Ghép 2 Đơn Ngẫu Nhiên' : '➕ Kích Hoạt Đơn Ghép (Batching)'}
-            <div style={{ fontSize: '10px', fontWeight: 'normal', color: '#cbd5e1', marginTop: '2px' }}>Tăng tỷ suất giá trị thặng dư m'</div>
+            {isBatchedOrder ? '✅ Đang Bật Đơn Ghép (+6.500đ/đơn 2)' : '➕ Bật Đơn Ghép (Ép Giá Đơn Thứ 2)'}
+            <div style={{ fontSize: '10px', fontWeight: 'normal', color: '#cbd5e1', marginTop: '2px' }}>Giao 2 khách nhưng chỉ trả thêm ~6.500đ</div>
           </button>
 
           <button
             onClick={handleGasCrisis}
             style={{ padding: '10px', borderRadius: '10px', background: gasCrisis ? '#b45309' : '#1e293b', color: '#fff', border: '1px solid #334155', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', textAlign: 'left' }}
           >
-            {gasCrisis ? '⛽ Đang Bão Giá Xăng (+40% c)' : '⛽ Biến Động Giá Xăng Dầu'}
-            <div style={{ fontSize: '10px', fontWeight: 'normal', color: '#cbd5e1', marginTop: '2px' }}>Tài xế tự chịu c tại Trạm Xăng</div>
+            {gasCrisis ? '⛽ Xăng RON95 Đang >30.000đ/L' : '⛽ Tăng Giá Xăng RON95 Lên 30k/L'}
+            <div style={{ fontSize: '10px', fontWeight: 'normal', color: '#cbd5e1', marginTop: '2px' }}>Tăng c từ 1.250đ/km lên 1.750đ/km</div>
           </button>
 
           <button
             onClick={handleUpgradeAlgo}
-            disabled={surplusM < 200}
-            style={{ padding: '10px', borderRadius: '10px', background: surplusM >= 200 ? '#7c3aed' : '#312e81', color: '#fff', border: 'none', cursor: surplusM >= 200 ? 'pointer' : 'not-allowed', opacity: surplusM >= 200 ? 1 : 0.6, fontSize: '12px', fontWeight: 'bold', textAlign: 'left' }}
+            disabled={surplusM < 30}
+            style={{ padding: '10px', borderRadius: '10px', background: surplusM >= 30 ? '#7c3aed' : '#312e81', color: '#fff', border: 'none', cursor: surplusM >= 30 ? 'pointer' : 'not-allowed', opacity: surplusM >= 30 ? 1 : 0.6, fontSize: '12px', fontWeight: 'bold', textAlign: 'left' }}
           >
-            🚀 Nâng Cấp Thuật Toán AI (200k m)
-            <div style={{ fontSize: '10px', fontWeight: 'normal', color: '#cbd5e1', marginTop: '2px' }}>Tăng chiết khấu sàn & tốc độ ép đơn</div>
+            🚀 Tăng Chiết Khấu Sàn (+3% / 30.000đ m)
+            <div style={{ fontSize: '10px', fontWeight: 'normal', color: '#cbd5e1', marginTop: '2px' }}>Từ 27.2% lên 30.2% - 35% mỗi cuốc</div>
           </button>
 
           <button
             onClick={handleBuyDrone}
-            disabled={surplusM < 500}
-            style={{ padding: '10px', borderRadius: '10px', background: surplusM >= 500 ? '#0284c7' : '#0f172a', color: '#fff', border: 'none', cursor: surplusM >= 500 ? 'pointer' : 'not-allowed', opacity: surplusM >= 500 ? 1 : 0.6, fontSize: '12px', fontWeight: 'bold', textAlign: 'left' }}
+            disabled={surplusM < 80}
+            style={{ padding: '10px', borderRadius: '10px', background: surplusM >= 80 ? '#0284c7' : '#0f172a', color: '#fff', border: 'none', cursor: surplusM >= 80 ? 'pointer' : 'not-allowed', opacity: surplusM >= 80 ? 1 : 0.6, fontSize: '12px', fontWeight: 'bold', textAlign: 'left' }}
           >
-            🤖 Mua Drone Giao Hàng AI (500k m)
-            <div style={{ fontSize: '10px', fontWeight: 'normal', color: '#cbd5e1', marginTop: '2px' }}>Tăng cấu tạo hữu cơ c/v, thay thế shipper</div>
+            🤖 Đầu Tư Drone Giao Hàng (80.000đ m)
+            <div style={{ fontSize: '10px', fontWeight: 'normal', color: '#cbd5e1', marginTop: '2px' }}>Dùng m của tài xế để tự động hóa</div>
           </button>
         </div>
       </div>
@@ -1785,7 +1862,7 @@ export default function GigEconomy2D() {
           >
             {autoDispatch ? '⏸️ Tắt Tự Động Nhận & Chạy Đơn' : '⚡ Bật Tự Động Nhận Đơn & Chạy Liên Tục'}
           </button>
-          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Nhật ký hoạt động App & Ví Shipper:</span>
+          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Sổ cái chi tiết thu - chi từng cuốc xe tại Việt Nam:</span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
