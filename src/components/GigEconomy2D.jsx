@@ -1,13 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // --- DỮ LIỆU ĐƠN HÀNG & CHI PHÍ THỰC TẾ SHIPPER VIỆT NAM (TP.HCM / HÀ NỘI) ---
-// Trong thực tế tại VN (GrabFood / ShopeeFood / BeFood):
-// - Tiền món ăn (COD ứng Ví): 35.000đ - 250.000đ (Shipper chỉ ứng trước rồi thu lại của khách)
-// - Tiền cước vận chuyển (W):
-//   + Dưới 3km: ~15.000đ - 16.000đ/đơn
-//   + Trên 3km: +4.000đ - 4.500đ cho mỗi km tiếp theo
-// - Chiết khấu sàn + Thuế VAT/TNCN (m): ~27.2% (mức chuẩn thực tế tại VN, có thể tăng lên 30-35%)
-// - Chi phí xăng RON 95 (~23.500đ/lít, xe Wave/Sirius tốn ~2L/100km) + Nhớt (120k/1500km) + Khấu hao lốp/nhông sên/4G (c): ~1.300đ / km
 const RANDOM_ORDER_TYPES = [
   { name: '🧋 Trà Sữa Trân Châu Đường Đen', baseDist: 2.1, codFoodPrice: 45, shopKey: 'milkTeaShop', custKeys: ['university', 'customerB'] },
   { name: '🥖 Bánh Mì Chả Cá Nóng Giòn', baseDist: 1.6, codFoodPrice: 25, shopKey: 'milkTeaShop', custKeys: ['university', 'customerA'] },
@@ -49,7 +42,7 @@ const SHOP_DIALOGS = [
     question: 'Giờ cao điểm trưa bếp đang kẹt 5 đơn liền, em ngồi đợi 5 phút uống ly trà đá miễn phí của quán nha!',
     options: [
       { text: '🥤 Dạ em đợi được, cảm ơn quán mời ly trà đá ạ (+10% thể lực)', effect: () => ({ energy: 10, rating: 0.03, reply: 'Uống đi cho mát, chạy ngoài đường nắng 38 độ cực quá!', log: '☕ Được quán mời trà đá miễn phí trong lúc chờ món (+10% thể lực). Thời gian chờ quán là "thời gian chết" không được tính công.' }) },
-      { text: '⏱️ Hối bếp làm nhanh vì sợ trễ giờ cao điểm mất thưởng mốc ngày', effect: () => ({ energy: -3, reply: 'Bếp ráng hết sức rồi, của em xong rồi đây!', log: '⏳ Để đạt thưởng mốc (12-15 đơn/ngày), shipper luôn bị áp lực từng phút chờ đợi tại quán.' }) }
+      { text: '⏱️ Hối bếp làm nhanh vì sợ trễ giờ cao điểm mất thưởng mốc ngày', effect: () => ({ energy: -3, reply: 'Bếp ráng hết sức rồi, của em xong rồi đây!', log: '⏳ Để đạt thưởng mốc (10 đơn/ngày), shipper luôn bị áp lực từng phút chờ đợi tại quán.' }) }
     ]
   },
   {
@@ -98,7 +91,7 @@ const CUSTOMER_DIALOGS = [
 // --- DANH SÁCH 5 KHU VỰC & CHỨC NĂNG CHI PHÍ THỰC TẾ VIỆT NAM ---
 const ZONE_ROLES_INFO = [
   { id: 'zone1', title: 'Khu 1: Phố Ẩm Thực & ĐH', role: '👩‍🍳 Chủ Quán & 🧑‍🎓 Sinh Viên', desc: 'Lấy Cơm tấm/Phở (ứng COD 45k-65k), giao đơn KTX Sinh viên (cước 15k-22k).', targetKey: 'restaurant', color: '#f59e0b' },
-  { id: 'zone2', title: 'Khu 2: Ăn Vặt & Trạm Xăng', role: '⛽ Xăng RON95 & Nhớt Xe', desc: 'Đổ xăng RON 95 (23.500đ/L) & thay nhớt/bảo dưỡng xe (trung bình ~1.300đ/km).', targetKey: 'gasStation', color: '#ec4899' },
+  { id: 'zone2', title: 'Khu 2: Ăn Vặt & Trạm Xăng', role: '⛽ Xăng RON95 & Nhớt Xe', desc: 'Đổ xăng RON 95 (23.500đ/L) & thay nhớt/bảo dưỡng xe (trung bình ~1.250đ/km).', targetKey: 'gasStation', color: '#ec4899' },
   { id: 'zone3', title: 'Khu 3: Trà Đá, CSGT & Công Đoàn', role: '☕ Trà Đá 0đ • 🚨 CSGT • 🤝 Hội Quán', desc: 'Uống trà đá miễn phí, coi chừng CSGT phạt vượt đèn (150k), Hội Quán hồi 5⭐.', targetKey: 'unionHub', color: '#10b981' },
   { id: 'zone4', title: 'Khu 4: Công Viên & Dân Cư', role: '🏪 Bò Húc 12k & 🙋‍♀️ Nhà Phố', desc: 'Ghé Tiện Lợi 24h mua Bò Húc (-12.000đ) hồi nhanh thể lực, giao đơn hẻm dân cư.', targetKey: 'customerA', color: '#22c55e' },
   { id: 'zone5', title: 'Khu 5: Đô Thị Công Nghệ Cao', role: '🏢 Sàn AI (27.2%) & 🧑‍💼 Chung Cư', desc: 'Trụ sở Sàn thu 27.2% chiết khấu + thuế, giao đơn Bệnh Viện & Chung Cư B.', targetKey: 'platformHQ', color: '#8b5cf6' }
@@ -110,36 +103,35 @@ export default function GigEconomy2D() {
   // --- TRẠNG THÁI APP SHIPPER & VÍ TÀI XẾ THỰC TẾ VIỆT NAM ---
   const [appOnline, setAppOnline] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
-  const [walletDeposit, setWalletDeposit] = useState(300); // Ví Tín Dụng / Ký Quỹ (300.000đ để nhận đơn COD)
+  const [walletDeposit] = useState(300); // Ví Ký Quỹ 300.000đ
 
-  // --- TRẠNG THÁI TÀI XẾ (ĐƠN VỊ: NGHÌN ĐỒNG - VD: 50 = 50.000đ) ---
+  // --- TRẠNG THÁI TÀI XẾ (ĐƠN VỊ: NGHÌN ĐỒNG) ---
   const [energy, setEnergy] = useState(100);
-  const [driverWage, setDriverWage] = useState(50); // Khởi đầu ca có 50.000đ tiền lẻ trong Ví Thu Nhập
-  const [driverCost, setDriverCost] = useState(0); // Tổng tiền xăng RON95 + nhớt + hao mòn đã trả (c)
-  const [unpaidWearCost, setUnpaidWearCost] = useState(0); // Chi phí xăng & hao mòn tích lũy trên các km đã chạy chờ thanh toán tại Trạm Xăng
-  const [totalKmDriven, setTotalKmDriven] = useState(0); // Tổng số km đã chạy trong ca
+  const [driverWage, setDriverWage] = useState(50);
+  const [driverCost, setDriverCost] = useState(0);
+  const [unpaidWearCost, setUnpaidWearCost] = useState(0);
+  const [totalKmDriven, setTotalKmDriven] = useState(0);
   const [completedOrders, setCompletedOrders] = useState(0);
   const [rating, setRating] = useState(4.95);
   const [acceptanceRate, setAcceptanceRate] = useState(96);
-  const [tier, setTier] = useState('Vàng');
+  const [tier] = useState('Vàng');
   const [questOrders, setQuestOrders] = useState(0);
   const [bikeHealth, setBikeHealth] = useState(100);
 
-  // --- TRẠNG THÁI CHỦ NỀN TẢNG (TƯ BẢN SỐ TẠI VN) ---
-  // Chiết khấu chuẩn tại Việt Nam: 20% phí sàn + 7.2% thuế VAT & TNCN = ~27.2%
+  // --- TRẠNG THÁI CHỦ NỀN TẢNG ---
   const [platformCutRate, setPlatformCutRate] = useState(0.272);
-  const [surplusM, setSurplusM] = useState(0); // Tổng thặng dư m sàn đã rút (nghìn đồng)
+  const [surplusM, setSurplusM] = useState(0);
   const [algoSpeed, setAlgoSpeed] = useState(1.0);
   const [algoLevel, setAlgoLevel] = useState(1);
   const [droneCount, setDroneCount] = useState(0);
 
-  // --- TRẠNG THÁI ĐƠN HÀNG HIỆN TẠI (GIÁ CƯỚC THỰC TẾ VN) ---
+  // --- TRẠNG THÁI ĐƠN HÀNG HIỆN TẠI ---
   const [currentOrder, setCurrentOrder] = useState({
     name: '🍛 Cơm Tấm Sườn Bì Chả Trứng',
     distance: 2.8,
-    codFoodPrice: 55, // Tiền đồ ăn ứng hộ (55.000đ)
-    price: 16.0,      // Cước phí giao hàng W (16.000đ cho 2.8km)
-    vehicleCost: 3.8, // Chi phí xăng RON95 + nhớt + khấu hao xe c (~3.800đ)
+    codFoodPrice: 55,
+    price: 16.0,
+    vehicleCost: 3.8,
     shopKey: 'restaurant',
     shopLabel: 'Quán Cơm Phở (Khu 1)',
     custKey: 'customerA',
@@ -161,17 +153,16 @@ export default function GigEconomy2D() {
   const [activeZoneTab, setActiveZoneTab] = useState(null);
 
   const [logList, setLogList] = useState([
-    '🇻🇳 <strong>BIỂU PHÍ SHIPPER VIỆT NAM THỰC TẾ:</strong> Cước gốc 2km đầu <strong>15.000đ</strong> (+4.200đ/km tiếp theo) • Sàn + Thuế thu <strong>27.2%</strong> • Xăng RON95 & hao mòn xe <strong>~1.300đ/km</strong>.',
-    '📱 Hãy bấm <strong>[📲 Nổ Đơn Random]</strong> để xem bảng tính chi tiết từng nghìn đồng của một cuốc xe ngoài đời thực!'
+    '🛣️ <strong>DI CHUYỂN TRÊN ĐƯỜNG & ÔM CUA NGÃ TƯ:</strong> Shipper chỉ chạy trên mặt đường nhựa, tự động bo cua tại ngã tư và tấp vào điểm đỗ xe <strong>[P]</strong> trước cửa Quán / Nhà khách (không đi xuyên tòa nhà)!',
+    '🇻🇳 Biểu phí thực tế VN: Cước 2km đầu <strong>15.000đ</strong> (+4.200đ/km) • Sàn + Thuế thu <strong>27.2%</strong> • Xăng RON95 & nhớt <strong>~1.250đ/km</strong>.'
   ]);
 
-  // Phân tích dòng tiền đơn hiện tại W = c + v + m (theo đơn vị nghìn đồng, hiển thị ra VNĐ)
   const displayOrder = incomingOrder || currentOrder;
-  const currentPrice = displayOrder.price; // W: Cước vận chuyển (VD: 16.0 = 16.000đ)
-  const currentCost = displayOrder.vehicleCost; // c: Xăng + hao mòn xe (VD: 3.8 = 3.800đ)
-  const currentSurplusM = +(currentPrice * platformCutRate).toFixed(1); // m: Sàn thu 27.2% (VD: 4.4 = 4.400đ)
-  const currentGrossDriver = +(currentPrice - currentSurplusM).toFixed(1); // Tiền về Ví trước khi trừ xăng (VD: 11.6 = 11.600đ)
-  const currentWageV = Math.max(0, +(currentPrice - currentSurplusM - currentCost).toFixed(1)); // v: Tiền công thực bỏ túi nuôi sống bản thân (VD: 7.8 = 7.800đ)
+  const currentPrice = displayOrder.price;
+  const currentCost = displayOrder.vehicleCost;
+  const currentSurplusM = +(currentPrice * platformCutRate).toFixed(1);
+  const currentGrossDriver = +(currentPrice - currentSurplusM).toFixed(1);
+  const currentWageV = Math.max(0, +(currentPrice - currentSurplusM - currentCost).toFixed(1));
   const surplusRate = currentWageV > 0 ? ((currentSurplusM / currentWageV) * 100).toFixed(1) : '∞';
 
   const gameRef = useRef({
@@ -244,7 +235,7 @@ export default function GigEconomy2D() {
   const SHOP_LABELS = {
     restaurant: 'Quán Cơm Phở (Khu 1)',
     milkTeaShop: 'Trà Sữa & Bánh Mì (Khu 2)',
-    pizzaShop: 'Pizza & Fastfood (Khu 2 Nam)'
+    pizzaShop: 'Pizza & Gà Rán (Khu 2 Nam)'
   };
 
   const CUST_LABELS = {
@@ -254,36 +245,24 @@ export default function GigEconomy2D() {
     customerB: 'Chung Cư Khách B (Khu 5 Nam)'
   };
 
-  // --- CÔNG THỨC TÍNH CƯỚC & CHI PHÍ THỰC TẾ SHIPPER VIỆT NAM ---
   const generateRandomOrder = (isNightShift = false, isBatched = false) => {
     const template = RANDOM_ORDER_TYPES[Math.floor(Math.random() * RANDOM_ORDER_TYPES.length)];
     const distNoise = +(Math.random() * 1.2 - 0.5).toFixed(1);
     const baseDist = Math.max(1.2, +(template.baseDist + distNoise).toFixed(1));
     const finalDist = isBatched ? +(baseDist * 1.45).toFixed(1) : baseDist;
 
-    // 1. Tính Cước giao hàng (W) chuẩn GrabFood/ShopeeFood tại VN:
-    // - 2km đầu tiên: 15.000đ (tức 15.0k)
-    // - Mỗi km tiếp theo: +4.200đ/km (tức 4.2k/km)
     let shippingFee = 15.0 + Math.max(0, finalDist - 2.0) * 4.2;
-
-    // Nếu là Đơn Ghép (2 đơn): Sàn thu của 2 khách nhưng chỉ cộng thêm cho tài xế ~6.000đ (ép giá cước trên km)!
     if (isBatched) {
       shippingFee = 15.0 + Math.max(0, baseDist - 2.0) * 4.2 + 6.5;
     }
-
-    // Phụ phí ban đêm (+5.000đ) hoặc mưa bão (+4.000đ - 8.000đ)
     if (isNightShift || gameRef.current.isNight) shippingFee += 5.0;
     if (gameRef.current.weather === 'rain') shippingFee += 4.0;
     if (gameRef.current.weather === 'storm') shippingFee += 8.0;
+    shippingFee = +(Math.round(shippingFee * 2) / 2).toFixed(1);
 
-    shippingFee = +(Math.round(shippingFee * 2) / 2).toFixed(1); // Làm tròn 500đ (VD: 16.5 = 16.500đ)
-
-    // 2. Tính Chi phí xăng RON95 + nhớt + khấu hao xe + 4G thực tế (c):
-    // Quãng đường thực tế tài xế phải chạy = Quãng đường giao + ~0.8km chạy không tải tới quán
     const realKmDriven = finalDist + 0.8;
-    // Trung bình 1.250đ/km (xăng 600đ/km + nhớt/lốp/nhông sên/khấu hao xe/4G 650đ/km)
     let costPerKm = 1.25;
-    if (gameRef.current.gasCrisis) costPerKm = 1.75; // Khi giá xăng RON95 tăng vọt lên >30.000đ/lít
+    if (gameRef.current.gasCrisis) costPerKm = 1.75;
     const vehicleCost = +(realKmDriven * costPerKm).toFixed(1);
 
     const shopKey = template.shopKey;
@@ -374,29 +353,127 @@ export default function GigEconomy2D() {
     resize();
     window.addEventListener('resize', resize);
 
+    // --- HỆ THỐNG TỌA ĐỘ 15 TÒA NHÀ & ĐIỂM ĐỖ XE TRƯỚC CỬA (parkX, parkY, aveY) ---
+    // Mỗi tòa nhà đều có lối tấp xe (Curbside Parking Bay) nối trực tiếp với Đại lộ Bắc (y=155) hoặc Đại lộ Nam (y=365)
     const map = {
-      // --- HÀNG 1 (BẮC, Y: 30) - KHU ẨM THỰC & QUYỀN LỰC THUẬT TOÁN ---
-      restaurant:   { x: 25,  y: 30,  w: 120, h: 75, emoji: '🍜', label: 'Quán Cơm Phở', color: '#f59e0b', sub: '👩‍🍳 Ứng COD 45-65k' },
-      milkTeaShop:  { x: 220, y: 30,  w: 115, h: 75, emoji: '🧋', label: 'Trà Sữa & Bánh Mì', color: '#ec4899', sub: '🧑‍🍳 Ứng COD 25-45k' },
-      teaStall:     { x: 410, y: 30,  w: 115, h: 75, emoji: '☕', label: 'Trà Đá Vỉa Hè', color: '#10b981', sub: 'Miễn phí 0đ (+Sức)' },
-      park:         { x: 600, y: 30,  w: 115, h: 75, emoji: '🌳', label: 'Công Viên Shipper', color: '#22c55e', sub: 'Nghỉ trưa 0đ' },
-      platformHQ:   { x: 790, y: 22,  w: 125, h: 83, emoji: '🏢', label: 'AI Platform (m)', color: '#8b5cf6', sub: 'Thu 27.2% mỗi đơn' },
+      // HÀNG 1 (BẮC, Y: 30..105) -> Cổng quay xuống Đại lộ Bắc (aveY = 155, điểm đỗ xe parkY = 120)
+      restaurant:   { x: 25,  y: 30,  w: 120, h: 75, parkX: 85,  parkY: 120, aveY: 155, emoji: '🍜', label: 'Quán Cơm Phở', color: '#f59e0b', sub: '👩‍🍳 Ứng COD 45-65k' },
+      milkTeaShop:  { x: 220, y: 30,  w: 115, h: 75, parkX: 277, parkY: 120, aveY: 155, emoji: '🧋', label: 'Trà Sữa & Bánh Mì', color: '#ec4899', sub: '🧑‍🍳 Ứng COD 25-45k' },
+      teaStall:     { x: 410, y: 30,  w: 115, h: 75, parkX: 467, parkY: 120, aveY: 155, emoji: '☕', label: 'Trà Đá Vỉa Hè', color: '#10b981', sub: 'Miễn phí 0đ (+Sức)' },
+      park:         { x: 600, y: 30,  w: 115, h: 75, parkX: 657, parkY: 120, aveY: 155, emoji: '🌳', label: 'Công Viên Shipper', color: '#22c55e', sub: 'Nghỉ trưa 0đ' },
+      platformHQ:   { x: 790, y: 22,  w: 125, h: 83, parkX: 852, parkY: 120, aveY: 155, emoji: '🏢', label: 'AI Platform (m)', color: '#8b5cf6', sub: 'Thu 27.2% mỗi đơn' },
 
-      // --- HÀNG 2 (TRUNG TÂM, Y: 235) - HẠ TẦNG, BẢO DƯỠNG & TIỆN ÍCH ---
-      gasStation:   { x: 25,  y: 235, w: 120, h: 75, emoji: '⛽', label: 'Cây Xăng RON95', color: '#d97706', sub: '23.5k/L & Thay nhớt' },
-      logisticsHub: { x: 220, y: 235, w: 115, h: 75, emoji: '📦', label: 'Tiệm Sửa Xe Máy', color: '#ea580c', sub: 'Vá lốp/Bảo dưỡng (c)' },
-      policePoint:  { x: 410, y: 235, w: 115, h: 75, emoji: '🚨', label: 'Chốt CSGT Ngã Tư', color: '#ef4444', sub: 'Vượt đèn phạt 150k' },
-      convenience:  { x: 600, y: 235, w: 115, h: 75, emoji: '🏪', label: 'Circle K / 24h', color: '#06b6d4', sub: 'Bò Húc 12.000đ/lon' },
-      hospital:     { x: 790, y: 235, w: 125, h: 75, emoji: '🏥', label: 'Bệnh Viện Đa Khoa', color: '#f43f5e', sub: '👩‍⚕️ Khách Y Tế/BN' },
+      // HÀNG 2 (TRUNG TÂM, Y: 235..310) -> Cổng quay xuống Đại lộ Nam (aveY = 365, điểm đỗ xe parkY = 328)
+      gasStation:   { x: 25,  y: 235, w: 120, h: 75, parkX: 85,  parkY: 328, aveY: 365, emoji: '⛽', label: 'Cây Xăng RON95', color: '#d97706', sub: '23.5k/L & Thay nhớt' },
+      logisticsHub: { x: 220, y: 235, w: 115, h: 75, parkX: 277, parkY: 328, aveY: 365, emoji: '📦', label: 'Tiệm Sửa Xe Máy', color: '#ea580c', sub: 'Vá lốp/Bảo dưỡng (c)' },
+      policePoint:  { x: 410, y: 235, w: 115, h: 75, parkX: 467, parkY: 328, aveY: 365, emoji: '🚨', label: 'Chốt CSGT Ngã Tư', color: '#ef4444', sub: 'Vượt đèn phạt 150k' },
+      convenience:  { x: 600, y: 235, w: 115, h: 75, parkX: 657, parkY: 328, aveY: 365, emoji: '🏪', label: 'Circle K / 24h', color: '#06b6d4', sub: 'Bò Húc 12.000đ/lon' },
+      hospital:     { x: 790, y: 235, w: 125, h: 75, parkX: 852, parkY: 328, aveY: 365, emoji: '🏥', label: 'Bệnh Viện Đa Khoa', color: '#f43f5e', sub: '👩‍⚕️ Khách Y Tế/BN' },
 
-      // --- HÀNG 3 (NAM, Y: 445) - ĐÔ THỊ DÂN CƯ, CÔNG ĐOÀN & GIAO HÀNG ---
-      university:   { x: 25,  y: 445, w: 120, h: 75, emoji: '🏫', label: 'Đại Học & KTX', color: '#3b82f6', sub: '🧑‍🎓 Khách Sinh Viên' },
-      pizzaShop:    { x: 220, y: 445, w: 115, h: 75, emoji: '🍕', label: 'Pizza & Gà Rán', color: '#f97316', sub: '👨‍🍳 Ứng COD 95-185k' },
-      unionHub:     { x: 410, y: 445, w: 115, h: 75, emoji: '🤝', label: 'Hội Quán Shipper', color: '#10b981', sub: 'Công Đoàn hồi 5.0⭐' },
-      customerA:    { x: 600, y: 445, w: 115, h: 75, emoji: '🏠', label: 'Nhà Khách Hàng A', color: '#06b6d4', sub: '🙋‍♀️ Hẻm Dân Cư' },
-      customerB:    { x: 790, y: 445, w: 125, h: 75, emoji: '🏢', label: 'Chung Cư Khách B', color: '#8b5cf6', sub: '🧑‍💼 Giao Sảnh G' }
+      // HÀNG 3 (NAM, Y: 445..520) -> Cổng quay lên Đại lộ Nam (aveY = 365, điểm đỗ xe parkY = 405)
+      university:   { x: 25,  y: 445, w: 120, h: 75, parkX: 85,  parkY: 405, aveY: 365, emoji: '🏫', label: 'Đại Học & KTX', color: '#3b82f6', sub: '🧑‍🎓 Khách Sinh Viên' },
+      pizzaShop:    { x: 220, y: 445, w: 115, h: 75, parkX: 277, parkY: 405, aveY: 365, emoji: '🍕', label: 'Pizza & Gà Rán', color: '#f97316', sub: '👨‍🍳 Ứng COD 95-185k' },
+      unionHub:     { x: 410, y: 445, w: 115, h: 75, parkX: 467, parkY: 405, aveY: 365, emoji: '🤝', label: 'Hội Quán Shipper', color: '#10b981', sub: 'Công Đoàn hồi 5.0⭐' },
+      customerA:    { x: 600, y: 445, w: 115, h: 75, parkX: 657, parkY: 405, aveY: 365, emoji: '🏠', label: 'Nhà Khách Hàng A', color: '#06b6d4', sub: '🙋‍♀️ Hẻm Dân Cư' },
+      customerB:    { x: 790, y: 445, w: 125, h: 75, parkX: 852, parkY: 405, aveY: 365, emoji: '🏢', label: 'Chung Cư Khách B', color: '#8b5cf6', sub: '🧑‍💼 Giao Sảnh G' }
     };
     gameRef.current.map = map;
+
+    // --- MẠNG LƯỚI GIAO THÔNG (ROAD GRAPH) ---
+    // 2 Đại lộ ngang: y = 155 (Bắc), y = 365 (Nam)
+    // 4 Phố dọc: x = 185, 375, 565, 755
+    const AVE_YS = [155, 365];
+    const STREET_XS = [185, 375, 565, 755];
+
+    // Kiểm tra 1 tọa độ (px, py) có nằm trên mặt đường nhựa hoặc bãi đỗ xe [P] trước tòa nhà không
+    // Không cho phép xe đi xuyên vào tòa nhà hoặc khu đất kín!
+    const isOnDrivableRoad = (px, py) => {
+      // 1. Nằm trên Đại lộ Bắc (lòng đường + lề đỗ xe: y từ 115 đến 192)
+      if (py >= 115 && py <= 192) return true;
+      // 2. Nằm trên Đại lộ Nam (lòng đường + lề đỗ xe: y từ 324 đến 410)
+      if (py >= 324 && py <= 410) return true;
+      // 3. Nằm trên 4 trục đường dọc nối liền các khu (x quanh 185, 375, 565, 755)
+      for (const sx of STREET_XS) {
+        if (px >= sx - 28 && px <= sx + 28 && py >= 12 && py <= 545) return true;
+      }
+      // 4. Nằm trong vịnh đỗ xe trước cửa bất kỳ tòa nhà nào
+      for (const lm of Object.values(map)) {
+        const minY = Math.min(lm.parkY, lm.aveY) - 6;
+        const maxY = Math.max(lm.parkY, lm.aveY) + 6;
+        if (px >= lm.parkX - 28 && px <= lm.parkX + 28 && py >= minY && py <= maxY) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Thuật toán tìm đường vuông góc trên mặt đường nhựa (Orthogonal Road Pathfinding)
+    // Giúp shipper chỉ chạy trên đường, biết rẽ vào ngã tư, ôm cua và tấp vào điểm đỗ xe [P]
+    const buildRoadPath = (startX, startY, destX, destY, forcedAveY = null) => {
+      const pts = [];
+      const addPt = (x, y) => {
+        const rx = Math.round(x);
+        const ry = Math.round(y);
+        if (pts.length === 0 || Math.hypot(pts[pts.length - 1].x - rx, pts[pts.length - 1].y - ry) > 4) {
+          pts.push({ x: rx, y: ry });
+        }
+      };
+
+      // Xác định đại lộ ngang phục vụ điểm đích (155 hoặc 365)
+      const targetAveY = forcedAveY || (Math.abs(destY - 155) < Math.abs(destY - 365) ? 155 : 365);
+
+      // Kiểm tra xem xe hiện tại đang ở trên phố dọc nào không
+      const currentVertX = STREET_XS.find(sx => Math.abs(startX - sx) <= 26);
+      const startAveY = Math.abs(startY - 155) < Math.abs(startY - 365) ? 155 : 365;
+
+      if (currentVertX !== undefined && Math.abs(startY - startAveY) > 22) {
+        // Xe đang chạy giữa đường dọc -> đi thẳng theo đường dọc tới đại lộ đích rồi rẽ!
+        addPt(currentVertX, startY);
+        addPt(currentVertX, targetAveY);
+        addPt(destX, targetAveY);
+        addPt(destX, destY);
+        return pts;
+      }
+
+      // Đưa xe từ vịnh đỗ hiện tại ra tim Đại lộ ngang gần nhất
+      addPt(startX, startAveY);
+
+      if (startAveY === targetAveY) {
+        // Cùng nằm trên 1 đại lộ ngang -> chạy dọc đại lộ rồi rẽ vào điểm đỗ
+        addPt(destX, targetAveY);
+        addPt(destX, destY);
+      } else {
+        // Khác đại lộ (VD: từ Đại lộ Bắc y=155 xuống Đại lộ Nam y=365)
+        // Tìm ngã tư đường dọc (185, 375, 565, 755) có tổng quãng đường ngắn nhất
+        let bestSx = STREET_XS[0];
+        let bestDist = Infinity;
+        for (const sx of STREET_XS) {
+          const d = Math.abs(startX - sx) + Math.abs(sx - destX);
+          if (d < bestDist) {
+            bestDist = d;
+            bestSx = sx;
+          }
+        }
+        // 1. Chạy trên đại lộ đầu tới ngã tư bestSx
+        addPt(bestSx, startAveY);
+        // 2. Cua 90 độ xuống/lên đường dọc bestSx tới đại lộ đích
+        addPt(bestSx, targetAveY);
+        // 3. Cua 90 độ chạy ngang tới trước cửa điểm đích
+        addPt(destX, targetAveY);
+        // 4. Tấp vào điểm đỗ xe [P]
+        addPt(destX, destY);
+      }
+
+      return pts;
+    };
+
+    // Nội suy góc quay mượt mà khi xe bo cua tại ngã tư
+    const lerpAngle = (curr, target, factor = 0.25) => {
+      let diff = target - curr;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      return curr + diff * factor;
+    };
 
     const aiShippers = [
       { x: 80,  y: 155, vx: 2.2, vy: 0, color: '#22c55e', brand: 'Grab' },
@@ -414,12 +491,18 @@ export default function GigEconomy2D() {
       { x: 565, y: 405, vy: -0.5, miny: 325, maxy: 420 }
     ];
 
+    // Khởi tạo xe nằm ngay trên giao lộ trung tâm (x=375, y=155)
     const bike = {
-      x: 470, y: 270,
-      targetX: 470, targetY: 270,
+      x: 375, y: 155,
+      waypoints: [],
       angle: 0, speed: 3.8
     };
     gameRef.current.bike = bike;
+
+    // Hàm điều hướng xe chạy theo đúng lộ trình đường phố tới 1 địa điểm
+    const navigateBikeTo = (destX, destY, aveY = null) => {
+      bike.waypoints = buildRoadPath(bike.x, bike.y, destX, destY, aveY);
+    };
 
     let particles = [];
     let rainDrops = [];
@@ -471,6 +554,10 @@ export default function GigEconomy2D() {
     const keys = { w: false, s: false, a: false, d: false };
     const onKD = (e) => {
       const k = e.key.toLowerCase();
+      if (['w', 'arrowup', 's', 'arrowdown', 'a', 'arrowleft', 'd', 'arrowright'].includes(k)) {
+        // Khi người chơi bấm phím tự lái, xóa lộ trình tự động để tự tay bẻ lái trên đường
+        bike.waypoints = [];
+      }
       if (['w', 'arrowup'].includes(k)) keys.w = true;
       if (['s', 'arrowdown'].includes(k)) keys.s = true;
       if (['a', 'arrowleft'].includes(k)) keys.a = true;
@@ -489,9 +576,8 @@ export default function GigEconomy2D() {
     window.__driveToLandmark = (key) => {
       const lm = map[key];
       if (!lm) return;
-      bike.targetX = lm.x + Math.round(lm.w / 2);
-      bike.targetY = lm.y + Math.round(lm.h / 2);
-      addLog(`🛵 Đang điều hướng xe chạy tới <strong>${lm.emoji} ${lm.label}</strong> (${lm.sub})...`);
+      navigateBikeTo(lm.parkX, lm.parkY, lm.aveY);
+      addLog(`🛵 Đang chạy theo làn đường & bo cua tới điểm đỗ <strong>${lm.emoji} ${lm.label}</strong>...`);
     };
 
     const onCanvasClick = (e) => {
@@ -503,21 +589,28 @@ export default function GigEconomy2D() {
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
 
+      // 1. Nếu click vào tòa nhà -> tự động tìm đường theo làn đường nhựa tới Điểm Đỗ Xe [P] trước cửa tòa nhà đó
       for (const [key, lm] of Object.entries(map)) {
         if (cx >= lm.x && cx <= lm.x + lm.w && cy >= lm.y && cy <= lm.y + lm.h) {
-          bike.targetX = lm.x + Math.round(lm.w / 2);
-          bike.targetY = lm.y + Math.round(lm.h / 2);
+          navigateBikeTo(lm.parkX, lm.parkY, lm.aveY);
           if (['restaurant', 'milkTeaShop', 'pizzaShop'].includes(key) && gameRef.current.missionState === 'idle') {
             window.__ringOrder(false, key);
           } else {
-            addLog(`📍 Đang lái xe tới <strong>${lm.emoji} ${lm.label}</strong> (${lm.sub})...`);
+            addLog(`🛣️ Đang chạy theo lộ trình đường phố tới <strong>${lm.emoji} ${lm.label}</strong> (${lm.sub})...`);
           }
           return;
         }
       }
 
-      bike.targetX = cx;
-      bike.targetY = cy;
+      // 2. Nếu click vào điểm bất kỳ ngoài mặt đường: ép điểm đích về làn đường hợp lệ gần nhất rồi tìm đường
+      let validX = cx;
+      let validY = cy;
+      if (!isOnDrivableRoad(validX, validY)) {
+        // Tìm tòa nhà gần nhất hoặc làn đường gần nhất
+        const nearAve = Math.abs(cy - 155) < Math.abs(cy - 365) ? 155 : 365;
+        validY = nearAve;
+      }
+      navigateBikeTo(validX, validY);
     };
     canvas.addEventListener('click', onCanvasClick);
 
@@ -569,7 +662,7 @@ export default function GigEconomy2D() {
       window.__ringOrder(isNightShift, null);
     };
 
-    // --- BƯỚC 1: TÀI XẾ BẤM "NHẬN ĐƠN" TRÊN APP ---
+    // --- BƯỚC 1: TÀI XẾ BẤM "NHẬN ĐƠN" TRÊN APP -> TỰ ĐỘNG TÌM ĐƯỜNG TRÊN PHỐ TỚI QUÁN ---
     window.__acceptIncomingOrder = (orderOverride = null) => {
       const ord = orderOverride || gameRef.current.incomingOrder;
       if (!ord) return;
@@ -593,15 +686,13 @@ export default function GigEconomy2D() {
 
       gameRef.current.missionState = 'to_restaurant';
       setMissionState('to_restaurant');
-      bike.targetX = pickShop.x + 60;
-      bike.targetY = pickShop.y + 40;
+      navigateBikeTo(pickShop.parkX, pickShop.parkY, pickShop.aveY);
       bike.hasFood = false;
       setHasFood(false);
 
-      addLog(`✅ <strong>Đã nhận đơn!</strong> Bước 1/2: Chạy tới <strong>${pickShop.emoji} ${pickShop.label}</strong> ứng ${formatVND(ord.codFoodPrice)} lấy món...`);
+      addLog(`✅ <strong>Đã nhận đơn!</strong> Bước 1/2: Đang chạy dọc làn đường & bo cua tới điểm đỗ <strong>${pickShop.emoji} ${pickShop.label}</strong>...`);
     };
 
-    // --- TỪ CHỐI ĐƠN TRÊN APP ---
     window.__declineIncomingOrder = () => {
       clearTimeout(gameRef.current.ringTimer);
       setIncomingOrder(null);
@@ -612,20 +703,20 @@ export default function GigEconomy2D() {
       addLog(`❌ <strong>Đã bỏ qua đơn:</strong> Bị hệ thống trừ -5% Tỷ lệ nhận đơn! (Dưới 80% sẽ mất quyền nhận thưởng mốc ngày).`);
     };
 
-    // --- BƯỚC 2: TỚI QUÁN GẶP CHỦ QUÁN ---
+    // --- BƯỚC 2: TỚI ĐIỂM ĐỖ QUÁN GẶP CHỦ QUÁN -> CHẠY THEO ĐƯỜNG PHỐ TỚI NHÀ KHÁCH ---
     const finishPickup = () => {
       gameRef.current.missionState = 'to_customer';
       setMissionState('to_customer');
       bike.hasFood = true;
       setHasFood(true);
       const drop = gameRef.current.targetCustomer || map.customerA;
-      bike.targetX = drop.x + 60;
-      bike.targetY = drop.y + 40;
-      addLog(`📦 <strong>Đã lấy món tại quán!</strong> Bước 2/2: Chạy ${gameRef.current.currentOrder.distance} km tới <strong>${drop.emoji} ${drop.label}</strong> giao cho khách!`);
+      navigateBikeTo(drop.parkX, drop.parkY, drop.aveY);
+      addLog(`📦 <strong>Đã nhận món!</strong> Bước 2/2: Đang chạy dọc theo đường phố & ôm cua tới <strong>${drop.emoji} ${drop.label}</strong> giao cho khách!`);
     };
 
     const openShopDialog = () => {
       if (gameRef.current.missionState !== 'to_restaurant') return;
+      bike.waypoints = [];
       gameRef.current.missionState = 'at_shop';
       setMissionState('at_shop');
       const shop = gameRef.current.targetShop || map.restaurant;
@@ -665,9 +756,10 @@ export default function GigEconomy2D() {
       }, 1100);
     };
 
-    // --- BƯỚC 3: TỚI ĐỊA CHỈ NGƯỜI ĐẶT ---
+    // --- BƯỚC 3: TỚI ĐIỂM ĐỖ NHÀ KHÁCH ---
     const openCustomerDialog = () => {
       if (gameRef.current.missionState !== 'to_customer') return;
+      bike.waypoints = [];
       gameRef.current.missionState = 'at_customer';
       setMissionState('at_customer');
       const custSpot = gameRef.current.targetCustomer || map.customerA;
@@ -690,11 +782,11 @@ export default function GigEconomy2D() {
       setHasFood(false);
 
       const ord = gameRef.current.currentOrder;
-      const finalPrice = gameRef.current.targetPrice; // Cước ship W (VD: 16.0k)
-      const m = +(finalPrice * gameRef.current.platformCutRate).toFixed(1); // Sàn cắt 27.2% (VD: 4.4k)
-      const driverGross = +(finalPrice - m + tipBonus).toFixed(1); // Tiền về Ví trước khi đổ xăng
-      const tripWearCost = gameRef.current.targetCost; // Chi phí xăng + hao mòn tích lũy của cuốc này (VD: 3.8k)
-      const realNetProfit = +(driverGross - tripWearCost).toFixed(1); // Thực lãi ròng đút túi
+      const finalPrice = gameRef.current.targetPrice;
+      const m = +(finalPrice * gameRef.current.platformCutRate).toFixed(1);
+      const driverGross = +(finalPrice - m + tipBonus).toFixed(1);
+      const tripWearCost = gameRef.current.targetCost;
+      const realNetProfit = +(driverGross - tripWearCost).toFixed(1);
 
       const nextEnergy = Math.max(0, gameRef.current.energy - gameRef.current.targetDrain);
       const nextWage = +(gameRef.current.driverWage + driverGross).toFixed(1);
@@ -722,7 +814,6 @@ export default function GigEconomy2D() {
       setCompletedOrders(nextOrders);
       setBikeHealth(nextHealth);
 
-      // Thưởng mốc 10 đơn thực tế tại VN (+50.000đ thưởng vượt mốc ngày)
       setQuestOrders(q => {
         const n = q + (gameRef.current.isBatchedOrder ? 2 : 1);
         if (n >= 10) {
@@ -776,15 +867,13 @@ export default function GigEconomy2D() {
     };
 
     window.__restDriver = () => {
-      bike.targetX = map.teaStall.x + 60;
-      bike.targetY = map.teaStall.y + 40;
-      addLog('☕ Đang di chuyển đến Quán Trà Đá Vỉa Hè (miễn phí 0đ) để nghỉ ngơi hồi phục thể lực.');
+      navigateBikeTo(map.teaStall.parkX, map.teaStall.parkY, map.teaStall.aveY);
+      addLog('☕ Đang chạy theo làn đường tới Quán Trà Đá Vỉa Hè (miễn phí 0đ) để nghỉ ngơi.');
     };
 
     window.__repairBike = () => {
-      bike.targetX = map.gasStation.x + 50;
-      bike.targetY = map.gasStation.y + 35;
-      addLog('⛽ Đang di chuyển vào Cây Xăng RON95 / Tiệm Sửa Xe để đổ xăng & bảo dưỡng.');
+      navigateBikeTo(map.gasStation.parkX, map.gasStation.parkY, map.gasStation.aveY);
+      addLog('⛽ Đang chạy theo làn đường vào Cây Xăng RON95 để đổ xăng & bảo dưỡng.');
     };
 
     let animId;
@@ -846,6 +935,25 @@ export default function GigEconomy2D() {
       ctx.fillRect(540, 0, 50, h);
       ctx.fillRect(730, 0, 50, h);
 
+      // Vẽ Vịnh Đỗ Xe [P] nối từ lòng đường vào cửa 15 tòa nhà
+      for (const lm of Object.values(map)) {
+        ctx.save();
+        ctx.fillStyle = gameRef.current.isNight ? '#172554' : '#3b495e';
+        ctx.strokeStyle = lm.color + '88';
+        ctx.lineWidth = 1;
+        const bayW = 36;
+        const bayX = lm.parkX - bayW / 2;
+        const bayY = lm.parkY < lm.aveY ? lm.parkY - 12 : lm.aveY + 25;
+        const bayH = 22;
+        ctx.fillRect(bayX, bayY, bayW, bayH);
+        ctx.strokeRect(bayX, bayY, bayW, bayH);
+        ctx.font = 'bold 8px system-ui';
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'center';
+        ctx.fillText('P', lm.parkX, bayY + 14);
+        ctx.restore();
+      }
+
       ctx.strokeStyle = '#fef08a';
       ctx.lineWidth = 2;
       ctx.setLineDash([12, 10]);
@@ -898,7 +1006,7 @@ export default function GigEconomy2D() {
         drawAiShipper(ctx, s);
       });
 
-      // --- VẼ 15 TÒA NHÀ & CÔNG TRÌNH ---
+      // --- VẼ 15 TÒA NHÀ & CÔNG TRÌNH (CHƯỚNG NGẠI VẬT VẬT LÝ) ---
       drawLandmark(ctx, map.restaurant.x, map.restaurant.y, map.restaurant.w, map.restaurant.h, map.restaurant.emoji, map.restaurant.label, map.restaurant.color, map.restaurant.sub);
       drawLandmark(ctx, map.milkTeaShop.x, map.milkTeaShop.y, map.milkTeaShop.w, map.milkTeaShop.h, map.milkTeaShop.emoji, map.milkTeaShop.label, map.milkTeaShop.color, map.milkTeaShop.sub);
       drawLandmark(ctx, map.teaStall.x, map.teaStall.y, map.teaStall.w, map.teaStall.h, map.teaStall.emoji, map.teaStall.label, map.teaStall.color, map.teaStall.sub);
@@ -917,67 +1025,115 @@ export default function GigEconomy2D() {
       drawLandmark(ctx, map.customerA.x, map.customerA.y, map.customerA.w, map.customerA.h, map.customerA.emoji, map.customerA.label, map.customerA.color, map.customerA.sub);
       drawLandmark(ctx, map.customerB.x, map.customerB.y, map.customerB.w, map.customerB.h, map.customerB.emoji, map.customerB.label, map.customerB.color, map.customerB.sub);
 
-      // --- VẼ ĐƯỜNG DẪN ĐỊNH VỊ GPS TRÊN BẢN ĐỒ ---
+      // --- VẼ ĐƯỜNG DẪN ĐỊNH VỊ GPS BÁM THEO KHÚC CUA MẶT ĐƯỜNG ---
       if (gameRef.current.missionState === 'to_restaurant' && gameRef.current.targetShop) {
         const ts = gameRef.current.targetShop;
-        const tx = ts.x + ts.w / 2;
-        const ty = ts.y + ts.h / 2;
-        drawGpsRoute(ctx, bike.x, bike.y, tx, ty, '#f59e0b', `📍 TỚI QUÁN LẤY MÓN: ${ts.label}`);
+        const routeNodes = bike.waypoints.length > 0
+          ? [{ x: bike.x, y: bike.y }, ...bike.waypoints]
+          : [{ x: bike.x, y: bike.y }, ...buildRoadPath(bike.x, bike.y, ts.parkX, ts.parkY, ts.aveY)];
+        drawGpsPolyline(ctx, routeNodes, '#f59e0b', `📍 TỚI QUÁN LẤY MÓN: ${ts.label}`);
       } else if (gameRef.current.missionState === 'to_customer' && gameRef.current.targetCustomer) {
         const tc = gameRef.current.targetCustomer;
-        const tx = tc.x + tc.w / 2;
-        const ty = tc.y + tc.h / 2;
-        drawGpsRoute(ctx, bike.x, bike.y, tx, ty, '#38bdf8', `🎯 GIAO CHO KHÁCH: ${tc.label}`);
+        const routeNodes = bike.waypoints.length > 0
+          ? [{ x: bike.x, y: bike.y }, ...bike.waypoints]
+          : [{ x: bike.x, y: bike.y }, ...buildRoadPath(bike.x, bike.y, tc.parkX, tc.parkY, tc.aveY)];
+        drawGpsPolyline(ctx, routeNodes, '#38bdf8', `🎯 GIAO CHO KHÁCH: ${tc.label}`);
+      } else if (bike.waypoints.length > 0) {
+        drawGpsPolyline(ctx, [{ x: bike.x, y: bike.y }, ...bike.waypoints], '#10b981', '🛵 ĐANG CHẠY TRÊN ĐƯỜNG...');
       }
 
-      // --- ĐIỀU KHIỂN & CHUYỂN ĐỘNG XE CỦA NGƯỜI CHƠI ---
+      // --- ĐIỀU KHIỂN XE TRÊN ĐƯỜNG, ÔM CUA & CHẶN CHƯỚNG NGẠI VẬT ---
       const inDialog = ['at_shop', 'picking_up', 'at_customer'].includes(gameRef.current.missionState);
       if (inDialog) {
-        // Đứng yên tương tác
+        // Đứng yên tại điểm đỗ xe [P] để tương tác
       } else if (keys.w || keys.s || keys.a || keys.d) {
-        bike.targetX = bike.x; bike.targetY = bike.y;
-        const spd = (gameRef.current.bikeHealth > 30 ? 4.2 : 2.5) * gameRef.current.algoSpeed;
-        if (keys.w) { bike.y -= spd; bike.angle = -Math.PI / 2; }
-        if (keys.s) { bike.y += spd; bike.angle = Math.PI / 2; }
-        if (keys.a) { bike.x -= spd; bike.angle = Math.PI; }
-        if (keys.d) { bike.x += spd; bike.angle = 0; }
-      } else {
-        const dx = bike.targetX - bike.x;
-        const dy = bike.targetY - bike.y;
+        // LÁI THỦ CÔNG BẰNG W/A/S/D: Có bo cua mượt & không đi xuyên chướng ngại vật!
+        const spd = (gameRef.current.bikeHealth > 30 ? 4.0 : 2.4) * gameRef.current.algoSpeed;
+        let vx = 0;
+        let vy = 0;
+        if (keys.w) vy -= 1;
+        if (keys.s) vy += 1;
+        if (keys.a) vx -= 1;
+        if (keys.d) vx += 1;
+
+        if (vx !== 0 || vy !== 0) {
+          const mag = Math.hypot(vx, vy);
+          vx = (vx / mag) * spd;
+          vy = (vy / mag) * spd;
+
+          const desiredAngle = Math.atan2(vy, vx);
+          bike.angle = lerpAngle(bike.angle, desiredAngle, 0.28);
+
+          const nextX = bike.x + vx;
+          const nextY = bike.y + vy;
+
+          if (isOnDrivableRoad(nextX, nextY)) {
+            bike.x = nextX;
+            bike.y = nextY;
+          } else {
+            // Trượt dọc theo mép đường / hỗ trợ ôm cua vào ngã tư gần nhất
+            if (isOnDrivableRoad(nextX, bike.y)) {
+              bike.x = nextX;
+            } else if (isOnDrivableRoad(bike.x, nextY)) {
+              bike.y = nextY;
+            } else {
+              // Nếu người chơi đang bấm lên/xuống gần ngã tư dọc (cách < 32px), tự động hút nhẹ xe vào làn đường dọc để cua mượt!
+              if (vy !== 0) {
+                const nearSx = STREET_XS.find(sx => Math.abs(bike.x - sx) < 35);
+                if (nearSx !== undefined) {
+                  bike.x += Math.sign(nearSx - bike.x) * Math.min(spd, Math.abs(nearSx - bike.x));
+                }
+              }
+              if (vx !== 0) {
+                const nearAy = AVE_YS.find(ay => Math.abs(bike.y - ay) < 35);
+                if (nearAy !== undefined) {
+                  bike.y += Math.sign(nearAy - bike.y) * Math.min(spd, Math.abs(nearAy - bike.y));
+                }
+              }
+            }
+          }
+        }
+      } else if (bike.waypoints.length > 0) {
+        // CHẠY TỰ ĐỘNG THEO CÁC NÚT GIAO THÔNG (WAYPOINTS) TRÊN MẶT ĐƯỜNG & ÔM CUA MƯỢT
+        const wp = bike.waypoints[0];
+        const dx = wp.x - bike.x;
+        const dy = wp.y - bike.y;
         const dist = Math.hypot(dx, dy);
         const autoSpd = (gameRef.current.bikeHealth > 30 ? 3.8 : 2.2) * gameRef.current.algoSpeed;
 
         if (dist <= autoSpd) {
-          bike.x = bike.targetX;
-          bike.y = bike.targetY;
+          bike.x = wp.x;
+          bike.y = wp.y;
+          bike.waypoints.shift();
         } else {
-          bike.angle = Math.atan2(dy, dx);
-          bike.x += Math.cos(bike.angle) * autoSpd;
-          bike.y += Math.sin(bike.angle) * autoSpd;
+          const desiredAngle = Math.atan2(dy, dx);
+          bike.angle = lerpAngle(bike.angle, desiredAngle, 0.32);
+          bike.x += (dx / dist) * autoSpd;
+          bike.y += (dy / dist) * autoSpd;
         }
       }
 
-      // --- KIỂM TRA TỚI QUÁN LẤY ĐƠN ---
+      // --- KIỂM TRA TỚI ĐIỂM ĐỖ QUÁN LẤY ĐƠN ---
       const tShop = gameRef.current.targetShop;
       if (tShop && gameRef.current.missionState === 'to_restaurant' &&
-          Math.hypot(bike.x - (tShop.x + 60), bike.y - (tShop.y + 40)) < 45) {
+          Math.hypot(bike.x - tShop.parkX, bike.y - tShop.parkY) < 28) {
         openShopDialog();
       }
 
-      // --- KIỂM TRA TỚI ĐỊA CHỈ KHÁCH GIAO HÀNG ---
+      // --- KIỂM TRA TỚI ĐIỂM ĐỖ NHÀ KHÁCH GIAO HÀNG ---
       const tCust = gameRef.current.targetCustomer;
       if (tCust && gameRef.current.missionState === 'to_customer' &&
-          Math.hypot(bike.x - (tCust.x + 60), bike.y - (tCust.y + 40)) < 45) {
+          Math.hypot(bike.x - tCust.parkX, bike.y - tCust.parkY) < 28) {
         openCustomerDialog();
       }
 
-      // --- CƠ CHẾ KHU VỰC 1: HỒI THỂ LỰC THỰC TẾ (TRÀ ĐÁ 0đ, CÔNG VIÊN 0đ, HOẶC BÒ HÚC CIRCLE K 12.000đ) ---
-      const distToTea = Math.hypot(bike.x - (map.teaStall.x + 60), bike.y - (map.teaStall.y + 40));
-      const distToPark = Math.hypot(bike.x - (map.park.x + 60), bike.y - (map.park.y + 40));
-      const distToConv = Math.hypot(bike.x - (map.convenience.x + 60), bike.y - (map.convenience.y + 40));
-      if (distToTea < 48 || distToPark < 48 || distToConv < 48) {
+      // --- CƠ CHẾ KHU VỰC 1: HỒI THỂ LỰC TẠI VỊNH ĐỖ XE TRÀ ĐÁ / CÔNG VIÊN / CIRCLE K ---
+      const distToTea = Math.hypot(bike.x - map.teaStall.parkX, bike.y - map.teaStall.parkY);
+      const distToPark = Math.hypot(bike.x - map.park.parkX, bike.y - map.park.parkY);
+      const distToConv = Math.hypot(bike.x - map.convenience.parkX, bike.y - map.convenience.parkY);
+      if (distToTea < 34 || distToPark < 34 || distToConv < 34) {
         if (gameRef.current.energy < 100) {
-          const healRate = distToConv < 48 ? 1.8 : 0.85;
+          const healRate = distToConv < 34 ? 1.8 : 0.85;
           const healedEnergy = Math.min(100, gameRef.current.energy + healRate);
           gameRef.current.energy = healedEnergy;
           setEnergy(healedEnergy);
@@ -988,7 +1144,7 @@ export default function GigEconomy2D() {
               y: bike.y - 10,
               vy: -1.2,
               life: 1.0,
-              text: distToTea < 48 ? '+Trà đá 0đ ☕' : (distToPark < 48 ? '+Nghỉ mát 🌳' : '+Bò Húc 12k ⚡')
+              text: distToTea < 34 ? '+Trà đá 0đ ☕' : (distToPark < 34 ? '+Nghỉ mát 🌳' : '+Bò Húc 12k ⚡')
             });
           }
 
@@ -996,21 +1152,21 @@ export default function GigEconomy2D() {
           if (now - lastHealSoundTime > 1200) {
             playSound('heal');
             lastHealSoundTime = now;
-            if (distToConv < 48 && gameRef.current.driverWage >= 12) {
+            if (distToConv < 34 && gameRef.current.driverWage >= 12) {
               setDriverWage(w => +(Math.max(0, w - 12)).toFixed(1));
               addLog(`🏪 <strong>Circle K / Tiện Lợi 24h:</strong> Mua 1 lon Bò Húc giá thực tế <strong>-12.000đ</strong> từ Ví, hồi siêu tốc thể lực lên ${Math.round(healedEnergy)}%!`);
             } else {
-              addLog(distToTea < 48
-                ? `☕ <strong>Trà Đá Vỉa Hè Miễn Phí (0đ):</strong> Ngồi nghỉ uống trà đá từ thiện dành cho shipper, thể lực lên ${Math.round(healedEnergy)}%!`
-                : `🌳 <strong>Công Viên Shipper (0đ):</strong> Dựng chân chống xe chợp mắt dưới bóng cây, thể lực lên ${Math.round(healedEnergy)}%!`);
+              addLog(distToTea < 34
+                ? `☕ <strong>Trà Đá Vỉa Hè Miễn Phí (0đ):</strong> Dừng xe tại điểm đỗ uống trà đá từ thiện, thể lực lên ${Math.round(healedEnergy)}%!`
+                : `🌳 <strong>Công Viên Shipper (0đ):</strong> Dựng chân chống xe nghỉ mát, thể lực lên ${Math.round(healedEnergy)}%!`);
             }
           }
         }
       }
 
-      // --- CƠ CHẾ KHU VỰC 2: HỘI QUÁN SHIPPER (ROLE CÔNG ĐOÀN LAO ĐỘNG) ---
-      const distToUnion = Math.hypot(bike.x - (map.unionHub.x + 60), bike.y - (map.unionHub.y + 40));
-      if (distToUnion < 48) {
+      // --- CƠ CHẾ KHU VỰC 2: HỘI QUÁN SHIPPER ---
+      const distToUnion = Math.hypot(bike.x - map.unionHub.parkX, bike.y - map.unionHub.parkY);
+      if (distToUnion < 34) {
         const now = Date.now();
         if (now - lastUnionTime > 5000) {
           lastUnionTime = now;
@@ -1022,8 +1178,8 @@ export default function GigEconomy2D() {
       }
 
       // --- CƠ CHẾ KHU VỰC 3: TRỤ SỞ AI PLATFORM ---
-      const distToHQ = Math.hypot(bike.x - (map.platformHQ.x + 62), bike.y - (map.platformHQ.y + 42));
-      if (distToHQ < 48) {
+      const distToHQ = Math.hypot(bike.x - map.platformHQ.parkX, bike.y - map.platformHQ.parkY);
+      if (distToHQ < 34) {
         const now = Date.now();
         if (now - lastHQTime > 5000) {
           lastHQTime = now;
@@ -1031,12 +1187,11 @@ export default function GigEconomy2D() {
         }
       }
 
-      // --- CƠ CHẾ KHU VỰC 4: ĐỔ XĂNG RON95 & THAY NHỚT THỰC TẾ (CÂY XĂNG HOẶC TIỆM SỬA XE) ---
-      const distToGas = Math.hypot(bike.x - (map.gasStation.x + 60), bike.y - (map.gasStation.y + 40));
-      const distToHub = Math.hypot(bike.x - (map.logisticsHub.x + 60), bike.y - (map.logisticsHub.y + 40));
-      if (distToGas < 48 || distToHub < 48) {
+      // --- CƠ CHẾ KHU VỰC 4: ĐỔ XĂNG RON95 & THAY NHỚT THỰC TẾ ---
+      const distToGas = Math.hypot(bike.x - map.gasStation.parkX, bike.y - map.gasStation.parkY);
+      const distToHub = Math.hypot(bike.x - map.logisticsHub.parkX, bike.y - map.logisticsHub.parkY);
+      if (distToGas < 34 || distToHub < 34) {
         if (gameRef.current.bikeHealth < 100 || gameRef.current.unpaidWearCost > 0) {
-          // Tính đúng số tiền xăng RON95 + hao mòn nhớt/lốp thực tế đã chạy (hoặc tối thiểu 15.000đ đổ xăng lẻ)
           const wearAccumulated = gameRef.current.unpaidWearCost;
           const damage = 100 - gameRef.current.bikeHealth;
           let repairCost = wearAccumulated > 0 ? +wearAccumulated.toFixed(1) : +(Math.max(10, damage * 0.4)).toFixed(1);
@@ -1066,19 +1221,19 @@ export default function GigEconomy2D() {
       }
 
       // --- CƠ CHẾ KHU VỰC 5: CHỐT CSGT THỰC TẾ ---
-      const distToPolice = Math.hypot(bike.x - (map.policePoint.x + 60), bike.y - (map.policePoint.y + 40));
-      if (distToPolice < 40) {
+      const distToPolice = Math.hypot(bike.x - map.policePoint.parkX, bike.y - map.policePoint.parkY);
+      if (distToPolice < 34) {
         const now = Date.now();
         if (now - lastPoliceTime > 4500) {
           lastPoliceTime = now;
           if (gameRef.current.algoSpeed > 1.2 || Math.random() < 0.22) {
-            const fineAmount = 150; // 150.000đ (mất đứt cả ngày chạy ship)
+            const fineAmount = 150;
             setDriverWage(w => +(Math.max(0, w - fineAmount)).toFixed(1));
             setDriverCost(c => +(c + fineAmount).toFixed(1));
             playSound('strike');
             addLog('🚨 <strong>Chốt CSGT phạt -150.000đ:</strong> Lỗi vừa lái xe vừa bấm điện thoại nhận đơn / vượt đèn vàng! Đi tong tiền công của hơn 15 cuốc xe!');
           } else {
-            addLog('👮 <strong>Chốt CSGT:</strong> Đồng chí CSGT nhắc nhở: "Một cuốc xe lời có 8.000đ - 10.000đ thôi, đừng vượt đèn đỏ kẻo phạt 800k - 5 triệu nhé!"');
+            addLog('👮 <strong>Chốt CSGT:</strong> Đồng chí CSGT nhắc nhở: "Một cuốc xe lời có 8.000đ - 10.000đ thôi, nhớ đi đúng làn đường, đừng vượt đèn đỏ nhé!"');
           }
         }
       }
@@ -1141,32 +1296,50 @@ export default function GigEconomy2D() {
     };
   }, []);
 
-  function drawGpsRoute(ctx, x1, y1, x2, y2, color, labelText) {
+  // Vẽ đường định vị GPS gấp khúc theo đúng mặt đường nhựa & các khúc cua ngã tư
+  function drawGpsPolyline(ctx, nodes, color, labelText) {
+    if (!nodes || nodes.length < 2) return;
     ctx.save();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
     ctx.setLineDash([10, 6]);
-    ctx.lineDashOffset = -(Date.now() * 0.04) % 16;
+    ctx.lineDashOffset = -(Date.now() * 0.045) % 16;
+
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+    ctx.moveTo(nodes[0].x, nodes[0].y);
+    for (let i = 1; i < nodes.length; i++) {
+      ctx.lineTo(nodes[i].x, nodes[i].y);
+    }
     ctx.stroke();
     ctx.setLineDash([]);
 
-    const pulse = 18 + Math.sin(Date.now() * 0.008) * 6;
+    // Vẽ chấm tròn tại các khúc cua (Corner Turn Nodes)
+    for (let i = 1; i < nodes.length - 1; i++) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(nodes[i].x, nodes[i].y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Vòng tròn phát sáng tại điểm đỗ xe đích [P]
+    const last = nodes[nodes.length - 1];
+    const pulse = 14 + Math.sin(Date.now() * 0.008) * 5;
     ctx.strokeStyle = color;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(x2, y2, pulse, 0, Math.PI * 2);
+    ctx.arc(last.x, last.y, pulse, 0, Math.PI * 2);
     ctx.stroke();
 
+    // Bảng tên GPS nổi phía trên điểm đỗ
     ctx.fillStyle = '#0f172a';
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
-    const bw = 195;
+    const bw = 205;
     const bh = 22;
-    const bx = Math.max(8, Math.min(ctx.canvas.width / (window.devicePixelRatio || 1) - bw - 8, x2 - bw / 2));
-    const by = Math.max(8, y2 - 52);
+    const bx = Math.max(8, Math.min(ctx.canvas.width / (window.devicePixelRatio || 1) - bw - 8, last.x - bw / 2));
+    const by = Math.max(8, last.y - 36);
     ctx.beginPath();
     ctx.roundRect(bx, by, bw, bh, 6);
     ctx.fill();
@@ -1376,8 +1549,6 @@ export default function GigEconomy2D() {
   const pctC = (currentCost / currentPrice) * 100;
   const pctM = (currentSurplusM / currentPrice) * 100;
   const pctV = Math.max(0, 100 - pctC - pctM);
-
-  // Thu nhập ròng thực tế đã trừ cả hao mòn xăng xe chưa thanh toán
   const realTakeHome = +(driverWage - unpaidWearCost).toFixed(1);
 
   return (
@@ -1387,15 +1558,15 @@ export default function GigEconomy2D() {
       <div style={{ background: '#111827', borderRadius: '16px', border: '1px solid #1f2937', padding: '14px 18px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#ef444420', color: '#f87171', border: '1px solid #ef444440' }}>
-              🇻🇳 BIỂU PHÍ THỰC TẾ SHIPPER VIỆT NAM (15.000đ/2km • Sàn thu 27.2%)
+            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#10b98120', color: '#34d399', border: '1px solid #10b98140' }}>
+              🛣️ CHẠY TRÊN ĐƯỜNG & BO CUA NGÃ TƯ (KHÔNG XUYÊN TÒA NHÀ)
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#6366f120', color: '#818cf8', border: '1px solid #6366f140' }}>
-              W = c + v + m
+            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '6px', background: '#ef444420', color: '#f87171', border: '1px solid #ef444440' }}>
+              🇻🇳 BIỂU PHÍ VN: 15.000đ/2km • Sàn thu 27.2%
             </span>
           </div>
           <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#f8fafc' }}>
-            🛵 Mô Phỏng Ship Ví Thực Tế Việt Nam: Cước 15k–35k/đơn, Khấu Hao Xăng Nhớt & Chiết Khấu 27.2%
+            🛵 Mô Phỏng Ship Ví Thực Tế Việt Nam: Lái Xe Bám Làn Đường, Ôm Cua & Tấp Vào Điểm Đỗ [P]
           </h1>
         </div>
 
@@ -1467,7 +1638,6 @@ export default function GigEconomy2D() {
             </button>
           </div>
 
-          {/* Nội dung Màn hình App */}
           {missionState === 'ringing' && incomingOrder ? (
             <div style={{ background: '#1e293b', borderRadius: '12px', border: '2px solid #f59e0b', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1489,7 +1659,6 @@ export default function GigEconomy2D() {
                   <div style={{ fontWeight: 'bold', color: '#38bdf8', marginTop: '2px' }}>{incomingOrder.custLabel}</div>
                 </div>
               </div>
-              {/* Bóc tách chi tiết từng đồng của cuốc xe tại VN */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', fontSize: '11px', background: '#111827', padding: '6px 8px', borderRadius: '8px', textAlign: 'center' }}>
                 <div>
                   <span style={{ color: '#94a3b8', display: 'block', fontSize: '10px' }}>Sàn + Thuế ({(platformCutRate * 100).toFixed(1)}%):</span>
@@ -1523,10 +1692,10 @@ export default function GigEconomy2D() {
             <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #38bdf8', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#38bdf8' }}>
-                  {missionState === 'to_restaurant' && '🛵 BƯỚC 1/2: ĐANG CHẠY TỚI QUÁN LẤY MÓN...'}
-                  {(missionState === 'at_shop' || missionState === 'picking_up') && '👩‍🍳 BƯỚC 1/2: ĐANG GẶP CHỦ QUÁN ỨNG TIỀN & NHẬN MÓN...'}
-                  {missionState === 'to_customer' && '🎯 BƯỚC 2/2: ĐANG CHẠY ĐI GIAO CHO NGƯỜI ĐẶT...'}
-                  {missionState === 'at_customer' && '🙋‍♂️ BƯỚC 2/2: ĐANG GIAO HÀNG & THU TIỀN KHÁCH...'}
+                  {missionState === 'to_restaurant' && '🛵 BƯỚC 1/2: ĐANG BÁM LÀN ĐƯỜNG & ÔM CUA TỚI QUÁN...'}
+                  {(missionState === 'at_shop' || missionState === 'picking_up') && '👩‍🍳 BƯỚC 1/2: ĐANG ĐỖ TẠI [P] GẶP CHỦ QUÁN NHẬN MÓN...'}
+                  {missionState === 'to_customer' && '🎯 BƯỚC 2/2: ĐANG CHẠY THEO ĐƯỜNG PHỐ TỚI NHÀ KHÁCH...'}
+                  {missionState === 'at_customer' && '🙋‍♂️ BƯỚC 2/2: ĐANG ĐỖ TẠI [P] GIAO HÀNG & THU TIỀN...'}
                 </span>
                 <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#f59e0b' }}>
                   Cước: {formatVND(currentOrder.price)} (COD: {formatVND(currentOrder.codFoodPrice)})
@@ -1535,11 +1704,11 @@ export default function GigEconomy2D() {
               <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc' }}>{currentOrder.name} ({currentOrder.distance} km)</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
                 <div style={{ padding: '6px 10px', borderRadius: '8px', background: hasFood ? '#064e3b' : '#0f172a', border: !hasFood ? '1px solid #f59e0b' : '1px solid #10b981' }}>
-                  <div style={{ color: '#94a3b8' }}>1. Điểm lấy hàng:</div>
+                  <div style={{ color: '#94a3b8' }}>1. Điểm đỗ lấy hàng [P]:</div>
                   <div style={{ fontWeight: 'bold', color: '#f8fafc' }}>{hasFood ? '✅ Đã lấy tại ' : '👉 '}{currentOrder.shopLabel}</div>
                 </div>
                 <div style={{ padding: '6px 10px', borderRadius: '8px', background: '#0f172a', border: hasFood ? '1px solid #38bdf8' : '1px solid #334155' }}>
-                  <div style={{ color: '#94a3b8' }}>2. Điểm giao khách:</div>
+                  <div style={{ color: '#94a3b8' }}>2. Điểm đỗ giao khách [P]:</div>
                   <div style={{ fontWeight: 'bold', color: '#38bdf8' }}>🎯 {currentOrder.custLabel}</div>
                 </div>
               </div>
@@ -1612,7 +1781,7 @@ export default function GigEconomy2D() {
 
       </div>
 
-      {/* Live Formula Bar (W = c + v + m) chuẩn tiền Việt Nam */}
+      {/* Live Formula Bar (W = c + v + m) */}
       <div style={{ background: '#111827', borderRadius: '14px', border: '1px solid #1f2937', padding: '10px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '12px', fontWeight: 'bold', flexWrap: 'wrap', gap: '6px' }}>
           <span style={{ color: '#cbd5e1' }}>
@@ -1637,7 +1806,7 @@ export default function GigEconomy2D() {
       {/* --- BẢNG CHỨC NĂNG RIÊNG CỦA 5 KHU VỰC & CÁC ROLE --- */}
       <div style={{ background: '#111827', borderRadius: '14px', border: '1px solid #1f2937', padding: '10px 14px' }}>
         <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>🗺️ 5 KHU VỰC & BẢNG GIÁ DỊCH VỤ THỰC TẾ CỦA SHIPPER VIỆT NAM (Click để lái xe tới):</span>
+          <span>🗺️ 5 KHU VỰC & BẢNG GIÁ DỊCH VỤ THỰC TẾ CỦA SHIPPER VIỆT NAM (Click để xe tự chạy theo làn đường tới):</span>
           <span style={{ fontSize: '11px', color: '#38bdf8' }}>Trà đá: 0đ • Bò Húc: 12.000đ • Xăng RON95: 23.500đ/L • Phạt đèn đỏ: 150.000đ</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
@@ -1708,7 +1877,7 @@ export default function GigEconomy2D() {
               )}
               {shopDialog.reply && (
                 <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#34d399', marginTop: '8px' }}>
-                  📦 Đã nhận đồ ăn! Đang bật GPS chạy tới giao cho người đặt...
+                  📦 Đã nhận đồ ăn! Đang lùi xe ra làn đường để chạy tới giao cho người đặt...
                 </div>
               )}
             </div>
@@ -1761,7 +1930,7 @@ export default function GigEconomy2D() {
         )}
 
         <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(15, 23, 42, 0.88)', border: '1px solid #334155', borderRadius: '20px', padding: '4px 16px', fontSize: '11px', color: '#cbd5e1', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          🇻🇳 <em>Thực tế Shipper VN: Cước 15.000đ/2km • Sàn thu 27.2% • Xăng RON95 + nhớt ~1.250đ/km → Mỗi cuốc 3km tài xế thực lời ~8.000đ - 10.000đ!</em>
+          🛣️ <em>Xe chỉ chạy trên mặt đường nhựa, tự bo cua tại các ngã tư và tấp vào điểm đỗ [P] trước cửa Quán / Nhà khách (Dùng W/A/S/D hoặc Click)!</em>
         </div>
       </div>
 
