@@ -14,6 +14,57 @@ const RANDOM_ORDER_TYPES = [
   { name: '🍔 Combo Burger Bò Phô Mai', baseDist: 6.0, minPrice: 85, maxPrice: 120 }
 ];
 
+// --- NHÂN VẬT CHỦ QUÁN / NHÂN VIÊN TẠI CÁC ĐIỂM LẤY MÓN ---
+const SHOP_NPCS = {
+  restaurant:  { name: 'Cô Ba (chủ quán cơm)', avatar: '👩‍🍳', color: '#f59e0b' },
+  milkTeaShop: { name: 'Bé Linh (nhân viên pha chế)', avatar: '🧑‍🍳', color: '#ec4899' },
+  pizzaShop:   { name: 'Anh Tuấn (quản lý ca)', avatar: '👨‍🍳', color: '#f97316' }
+};
+
+// Mỗi lựa chọn có effect(g) trả về { energy, wage, rating, reply, log }
+const SHOP_DIALOGS = [
+  {
+    question: 'Bếp đang làm dở, em chờ thêm 5 phút được không? App báo đơn sớm quá mà bếp chưa kịp!',
+    options: [
+      { text: '🙂 Dạ em đợi được ạ', effect: () => ({ energy: -5, rating: 0.03, reply: 'Cảm ơn em nha, chị làm liền đây!', log: '⏳ Chờ quán 5 phút: mất thời gian không được trả công — thời gian chết của lao động gig.' }) },
+      { text: '⏱️ Chị làm nhanh giúp em, app đang đếm giờ!', effect: () => (Math.random() < 0.5
+        ? { rating: -0.1, reply: 'Rồi rồi, chị làm vội đây...', log: '⭐ Quán làm vội, món bị đổ nước sốt → khách trừ sao. Thuật toán ép tốc độ, tài xế gánh hậu quả.' }
+        : { reply: 'Xong rồi nè, đi cẩn thận nha!', log: '⚡ May mắn: quán làm kịp, không bị trễ.' }) },
+      { text: '❓ Chị ơi, sàn thu quán mình bao nhiêu % vậy?', effect: (g) => ({ energy: -3, reply: 'Sàn thu quán chị 25-30% mỗi món đó em, lời chẳng bao nhiêu...', log: `📚 <strong>Thặng dư bị rút từ 2 đầu:</strong> Sàn thu quán ~25-30% giá món VÀ thu tài xế ${(g.platformCutRate * 100).toFixed(0)}% cước. Nền tảng không nấu, không chở, nhưng chiếm m từ cả hai phía.` }) }
+    ]
+  },
+  {
+    question: 'Trời nắng quá em ơi, uống ly trà đá cho mát không? Quán mời!',
+    options: [
+      { text: '🥤 Dạ em cảm ơn ạ!', effect: () => ({ energy: 15, reply: 'Uống đi em, chạy cả ngày mệt lắm.', log: '☕ Được quán mời trà đá: +15% thể lực. Tình người giữa những người lao động.' }) },
+      { text: '🏃 Thôi em vội lắm, cảm ơn chị', effect: () => ({ reply: 'Ừ, đi đường cẩn thận nha!', log: '🏃 Từ chối nghỉ ngơi để kịp giờ thuật toán.' }) }
+    ]
+  },
+  {
+    question: 'Khách ghi chú: "thêm đá, không hành, thêm tương ớt". Em kiểm tra lại giúp nhé?',
+    options: [
+      { text: '🔍 Để em kiểm tra kỹ', effect: () => ({ energy: -3, rating: 0.05, reply: 'Đủ hết rồi đó, em giỏi ghê!', log: '✅ Kiểm tra kỹ đơn: khách hài lòng, +0.05 ⭐.' }) },
+      { text: '🚀 Thôi bỏ qua cho nhanh', effect: () => (Math.random() < 0.35
+        ? { rating: -0.2, reply: 'Ơ... chị quên bỏ tương ớt rồi!', log: '⭐ Thiếu tương ớt → khách đánh 1 sao. Lỗi của quán nhưng tài xế bị trừ điểm.' }
+        : { reply: 'Ok em, đủ rồi đó.', log: '🚀 Đi luôn, may là đơn không thiếu gì.' }) }
+    ]
+  },
+  {
+    question: 'Dạo này chạy có khá không em? Nghe nói sàn lại tăng chiết khấu nữa hả?',
+    options: [
+      { text: '😩 Cực lắm chị, chạy 12 tiếng mới đủ sống', effect: () => ({ energy: -2, reply: 'Tội ghê, ráng giữ sức khỏe nha em.', log: '📚 <strong>Giá trị thặng dư tuyệt đối:</strong> Thu nhập/cuốc giảm buộc tài xế kéo dài ngày lao động để đủ sống.' }) },
+      { text: '✊ Anh em đang tính tắt app đình công', effect: () => ({ reply: 'Quán chị cũng ủng hộ, sàn ép cả quán lẫn tài xế!', log: '✊ Chủ quán nhỏ cũng bị sàn chèn ép — liên minh giữa người lao động và tiểu chủ.' }) },
+      { text: '🙂 Cũng tạm ổn chị ạ', effect: () => ({ reply: 'Vậy là tốt rồi, cố lên em!', log: '🙂 Trò chuyện vui vẻ với chủ quán.' }) }
+    ]
+  },
+  {
+    question: 'Đơn này của khách quen, họ gửi kèm 10k tiền bo cho em nè!',
+    options: [
+      { text: '💵 Em cảm ơn chị nhiều!', effect: () => ({ wage: 10, reply: 'Không có chi, em chạy cẩn thận!', log: '💵 Nhận 10k tiền bo trực tiếp — khoản duy nhất sàn không cắt được.' }) }
+    ]
+  }
+];
+
 export default function GigEconomy2D() {
   const canvasRef = useRef(null);
 
@@ -53,6 +104,7 @@ export default function GigEconomy2D() {
 
   const [hasFood, setHasFood] = useState(false);
   const [missionState, setMissionState] = useState('idle');
+  const [shopDialog, setShopDialog] = useState(null); // { npc, question, options, reply }
   const [logList, setLogList] = useState([
     '☕ TÍNH NĂNG MỚI: Lái xe (W/A/S/D) hoặc click vào Quán Trà Đá thì xe sẽ tự chạy tới và TỰ ĐỘNG HỒI PHỤC THỂ LỰC!',
     'Mẹo: Cứ cày đơn mệt mỏi, hãy tấp xe vào Quán Trà Đá để sạc lại 100% pin năng lượng.'
@@ -93,6 +145,7 @@ export default function GigEconomy2D() {
 
   useEffect(() => {
     gameRef.current = {
+      ...gameRef.current,
       energy,
       driverWage,
       driverCost,
@@ -447,6 +500,60 @@ export default function GigEconomy2D() {
       addLog(`🔔 <strong>Nổ đơn ngẫu nhiên:</strong> ${newOrder.name} (${newOrder.distance} km) - Giá: <strong>${newOrder.price}k VNĐ</strong>! Lấy tại ${pickShop.label}, giao đến ${dropSpot.label}`);
     };
 
+    // --- TƯƠNG TÁC VỚI CHỦ QUÁN KHI TỚI LẤY MÓN ---
+    const finishPickup = () => {
+      gameRef.current.missionState = 'to_customer';
+      setMissionState('to_customer');
+      bike.hasFood = true;
+      setHasFood(true);
+      const drop = gameRef.current.targetCustomer || map.customerA;
+      bike.targetX = drop.x + 60;
+      bike.targetY = drop.y + 40;
+      addLog(`📦 Đã lấy món (${gameRef.current.targetPrice}k)! Đang phóng xe đến ${drop.label}...`);
+    };
+
+    const openShopDialog = () => {
+      if (gameRef.current.missionState !== 'to_restaurant') return;
+      gameRef.current.missionState = 'at_shop';
+      setMissionState('at_shop');
+      const shop = gameRef.current.targetShop || map.restaurant;
+      const shopKey = Object.keys(map).find(k => map[k] === shop) || 'restaurant';
+      const npc = SHOP_NPCS[shopKey] || SHOP_NPCS.restaurant;
+      const dlg = SHOP_DIALOGS[Math.floor(Math.random() * SHOP_DIALOGS.length)];
+      setShopDialog({ npc, shopLabel: shop.label, question: dlg.question, options: dlg.options, reply: null });
+      playSound('heal');
+
+      // Chế độ tự động ép cuốc: thuật toán không cho thời gian trò chuyện → tự chọn sau 3s
+      clearTimeout(gameRef.current.dialogTimer);
+      if (gameRef.current.autoDispatch) {
+        gameRef.current.dialogTimer = setTimeout(() => window.__resolveShopDialog(dlg.options[0]), 3000);
+      }
+    };
+
+    window.__resolveShopDialog = (opt) => {
+      if (gameRef.current.missionState !== 'at_shop') return;
+      clearTimeout(gameRef.current.dialogTimer);
+      const fx = opt.effect(gameRef.current) || {};
+      if (fx.energy) {
+        const e = Math.max(0, Math.min(100, gameRef.current.energy + fx.energy));
+        gameRef.current.energy = e;
+        setEnergy(e);
+      }
+      if (fx.wage) {
+        gameRef.current.driverWage += fx.wage;
+        setDriverWage(w => w + fx.wage);
+      }
+      if (fx.rating) setRating(r => Math.max(3.5, Math.min(5.0, +(r + fx.rating).toFixed(2))));
+      if (fx.log) addLog(fx.log);
+      setShopDialog(d => d ? { ...d, reply: fx.reply || 'Đây món của em nè!', options: [] } : d);
+      gameRef.current.missionState = 'picking_up';
+      setMissionState('picking_up');
+      setTimeout(() => {
+        setShopDialog(null);
+        finishPickup();
+      }, 1400);
+    };
+
     window.__restDriver = () => {
       bike.targetX = map.teaStall.x + 60;
       bike.targetY = map.teaStall.y + 40;
@@ -612,7 +719,10 @@ export default function GigEconomy2D() {
       drawLandmark(ctx, map.customerB.x, map.customerB.y, map.customerB.w, map.customerB.h, map.customerB.emoji, map.customerB.label, map.customerB.color, gameRef.current.isBatchedOrder && bike.hasFood ? '🎯 Giao tiếp!' : map.customerB.sub);
 
       // --- ĐIỀU KHIỂN & CHUYỂN ĐỘNG XE CỦA NGƯỜI CHƠI ---
-      if (keys.w || keys.s || keys.a || keys.d) {
+      const talkingAtShop = gameRef.current.missionState === 'at_shop' || gameRef.current.missionState === 'picking_up';
+      if (talkingAtShop) {
+        // Đứng tại quán nói chuyện với chủ quán, xe không di chuyển
+      } else if (keys.w || keys.s || keys.a || keys.d) {
         bike.targetX = bike.x; bike.targetY = bike.y;
         const spd = (gameRef.current.bikeHealth > 30 ? 4.2 : 2.5) * gameRef.current.algoSpeed;
         if (keys.w) { bike.y -= spd; bike.angle = -Math.PI / 2; }
@@ -630,14 +740,7 @@ export default function GigEconomy2D() {
           bike.y = bike.targetY;
 
           if (gameRef.current.missionState === 'to_restaurant') {
-            gameRef.current.missionState = 'to_customer';
-            setMissionState('to_customer');
-            bike.hasFood = true;
-            setHasFood(true);
-            const drop = gameRef.current.targetCustomer || map.customerA;
-            bike.targetX = drop.x + 60;
-            bike.targetY = drop.y + 40;
-            addLog(`📦 Đã lấy món (${gameRef.current.targetPrice}k)! Đang phóng xe đến ${drop.label}...`);
+            openShopDialog();
           } else if (gameRef.current.missionState === 'to_customer') {
             gameRef.current.missionState = 'idle';
             setMissionState('idle');
@@ -785,14 +888,11 @@ export default function GigEconomy2D() {
         }
       }
 
-      // --- KIỂM TRA ĐIỂM LẤY MÓN (QUÁN CƠM, TRÀ SỮA HOẶC PIZZA) ---
-      const atFoodShop = Math.hypot(bike.x - (map.restaurant.x + 60), bike.y - (map.restaurant.y + 40)) < 45 ||
-                         Math.hypot(bike.x - (map.milkTeaShop.x + 60), bike.y - (map.milkTeaShop.y + 40)) < 45 ||
-                         Math.hypot(bike.x - (map.pizzaShop.x + 60), bike.y - (map.pizzaShop.y + 40)) < 45;
-      if (atFoodShop && !bike.hasFood && gameRef.current.missionState === 'to_restaurant') {
-        bike.hasFood = true;
-        setHasFood(true);
-        addLog('🍜 Lấy món thành công! Đang lái xe đến Khách Hàng để giao.');
+      // --- KIỂM TRA ĐIỂM LẤY MÓN: TỚI ĐÚNG QUÁN → CHỦ QUÁN RA NÓI CHUYỆN ---
+      const tShop = gameRef.current.targetShop;
+      if (tShop && gameRef.current.missionState === 'to_restaurant' &&
+          Math.hypot(bike.x - (tShop.x + 60), bike.y - (tShop.y + 40)) < 45) {
+        openShopDialog();
       }
 
       // --- KIỂM TRA ĐIỂM GIAO MÓN (NHÀ KHÁCH A, CHUNG CƯ B, ĐẠI HỌC, BỆNH VIỆN) ---
@@ -1249,6 +1349,46 @@ export default function GigEconomy2D() {
       {/* 2D Canvas Viewport (100% THÔNG THOÁNG) */}
       <div style={{ position: 'relative', width: '100%', height: '560px', borderRadius: '16px', overflow: 'hidden', border: '2px solid #1e293b', background: '#090d16' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', cursor: 'pointer' }} />
+
+        {shopDialog && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(2, 6, 23, 0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '16px', zIndex: 10 }}>
+            <div style={{ width: '100%', maxWidth: '620px', background: '#0f172a', border: `2px solid ${shopDialog.npc.color}`, borderRadius: '16px', padding: '14px 16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', marginBottom: '28px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ fontSize: '40px', lineHeight: 1, background: '#1e293b', borderRadius: '12px', padding: '6px' }}>{shopDialog.npc.avatar}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 'bold', color: shopDialog.npc.color, fontSize: '13px' }}>
+                    {shopDialog.npc.name} <span style={{ color: '#64748b', fontWeight: 'normal' }}>· {shopDialog.shopLabel}</span>
+                  </div>
+                  <div style={{ color: '#f1f5f9', fontSize: '14px', marginTop: '6px', lineHeight: 1.45 }}>
+                    “{shopDialog.reply || shopDialog.question}”
+                  </div>
+                </div>
+              </div>
+
+              {shopDialog.options.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' }}>
+                  {shopDialog.options.map((opt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { if (window.__resolveShopDialog) window.__resolveShopDialog(opt); }}
+                      style={{ textAlign: 'left', padding: '9px 12px', background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '10px', cursor: 'pointer', fontSize: '13px' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = shopDialog.npc.color; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#334155'; }}
+                    >
+                      {i + 1}. {opt.text}
+                    </button>
+                  ))}
+                  {autoDispatch && (
+                    <div style={{ fontSize: '11px', color: '#f59e0b' }}>⚡ Đang bật Tự Động Ép Cuốc: thuật toán sẽ tự chọn sau 3 giây!</div>
+                  )}
+                </div>
+              )}
+              {shopDialog.reply && (
+                <div style={{ fontSize: '11px', color: '#34d399', marginTop: '8px' }}>📦 Đang nhận món...</div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid #334155', borderRadius: '20px', padding: '4px 16px', fontSize: '11px', color: '#cbd5e1', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
           ☕ <em>Khám phá 5 phân khu & 15 địa điểm: Quán Cơm, Trà Sữa, Pizza, Cây Xăng, Hội Quán Shipper, Trà Đá, Công Viên, ĐH & KTX, Chung Cư!</em>
