@@ -206,18 +206,44 @@ export default function GigEconomy2D() {
     window.addEventListener('resize', resize);
 
     const map = {
-      restaurant:  { x: 70,  y: 40,  w: 105, h: 65, label: '🍜 Quán Cơm', color: '#f59e0b' },
-      gasStation:  { x: 70,  y: 260, w: 105, h: 65, label: '⛽ Trạm Xe/Xăng', color: '#d97706' },
-      teaStall:    { x: 330, y: 45,  w: 95,  h: 60, label: '☕ Trà Đá Hồi Máu', color: '#10b981' },
-      customerA:   { x: 575, y: 260, w: 100, h: 65, label: '🏠 Nhà Khách A', color: '#06b6d4' },
-      customerB:   { x: 575, y: 155, w: 100, h: 58, label: '🏢 Khách B (Ghép)', color: '#3b82f6' },
-      platformHQ:  { x: 575, y: 35,  w: 100, h: 75, label: '🏢 AI Sàn (m)', color: '#8b5cf6' },
-      policePoint: { x: 330, y: 260, w: 95,  h: 60, label: '🚨 Trạm CSGT', color: '#ef4444' }
+      // Khu 1: Phố Ẩm Thực & Cây Xăng
+      restaurant:   { x: 25,  y: 35,  w: 120, h: 75, emoji: '🍜', label: 'Quán Cơm Phở', color: '#f59e0b', sub: '👉 Lấy món cơm/phở' },
+      gasStation:   { x: 25,  y: 310, w: 120, h: 75, emoji: '⛽', label: 'Trạm Xe/Xăng', color: '#d97706', sub: 'Khi hao mòn tự ghé' },
+
+      // Khu 2: Khu Ăn Vặt & Logistics
+      milkTeaShop:  { x: 220, y: 35,  w: 115, h: 75, emoji: '🧋', label: 'Trà Sữa & Bánh Mì', color: '#ec4899', sub: '👉 Lấy trà sữa' },
+      logisticsHub: { x: 220, y: 310, w: 115, h: 75, emoji: '📦', label: 'Kho Sàn & Sạc Điện', color: '#ea580c', sub: 'Trạm sạc xe' },
+
+      // Khu 3: Trung Tâm Dịch Vụ Lao Động & Chốt Giao Thông
+      teaStall:     { x: 410, y: 35,  w: 115, h: 75, emoji: '☕', label: 'Quán Trà Đá', color: '#10b981', sub: 'Ghé tự hồi thể lực' },
+      policePoint:  { x: 410, y: 310, w: 115, h: 75, emoji: '🚨', label: 'Chốt CSGT & Đèn Đỏ', color: '#ef4444', sub: 'Coi chừng phạt 100k' },
+
+      // Khu 4: Khu Dân Cư & Công Viên Nghỉ Chân
+      park:         { x: 600, y: 35,  w: 115, h: 75, emoji: '🌳', label: 'Công Viên Shipper', color: '#22c55e', sub: 'Nghỉ trưa bóng mát' },
+      customerA:    { x: 600, y: 310, w: 115, h: 75, emoji: '🏠', label: 'Nhà Khách Hàng A', color: '#06b6d4', sub: 'Giao món nhận tiền' },
+
+      // Khu 5: Khu Đô Thị Công Nghệ Cao
+      platformHQ:   { x: 790, y: 25,  w: 125, h: 85, emoji: '🏢', label: 'AI Platform (m)', color: '#8b5cf6', sub: 'Trụ sở tư bản số' },
+      customerB:    { x: 790, y: 310, w: 125, h: 75, emoji: '🏢', label: 'Chung Cư Khách B', color: '#3b82f6', sub: 'Giao đơn ghép' }
     };
 
+    // Các shipper đồng nghiệp AI chạy trên đường tạo không khí tấp nập của thành phố
+    const aiShippers = [
+      { x: 80,  y: 195, vx: 2.2, vy: 0, color: '#22c55e', brand: 'Grab' },
+      { x: 850, y: 225, vx: -2.0, vy: 0, color: '#f97316', brand: 'Shopee' },
+      { x: 375, y: 60,  vx: 0, vy: 1.8, color: '#eab308', brand: 'Be' },
+      { x: 565, y: 350, vx: 0, vy: -1.9, color: '#ef4444', brand: 'Baemin' }
+    ];
+
+    // Người đi bộ qua đường (Pedestrians)
+    const pedestrians = [
+      { x: 185, y: 155, vy: 0.6, miny: 120, maxy: 260 },
+      { x: 755, y: 240, vy: -0.5, miny: 130, maxy: 265 }
+    ];
+
     const bike = {
-      x: 375, y: 185,
-      targetX: 375, targetY: 185,
+      x: 470, y: 210,
+      targetX: 470, targetY: 210,
       angle: 0, speed: 3.8
     };
 
@@ -296,28 +322,65 @@ export default function GigEconomy2D() {
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
 
-      // Click on Restaurant
+      // Click on Restaurant or Milk Tea Shop
       if (cx >= map.restaurant.x && cx <= map.restaurant.x + map.restaurant.w &&
           cy >= map.restaurant.y && cy <= map.restaurant.y + map.restaurant.h) {
-        window.__dispatchOrder(false);
+        if (gameRef.current.missionState === 'idle') window.__dispatchOrder(false);
+        else { bike.targetX = map.restaurant.x + 60; bike.targetY = map.restaurant.y + 40; }
+        return;
+      }
+      if (cx >= map.milkTeaShop.x && cx <= map.milkTeaShop.x + map.milkTeaShop.w &&
+          cy >= map.milkTeaShop.y && cy <= map.milkTeaShop.y + map.milkTeaShop.h) {
+        if (gameRef.current.missionState === 'idle') window.__dispatchOrder(false);
+        else { bike.targetX = map.milkTeaShop.x + 60; bike.targetY = map.milkTeaShop.y + 40; }
         return;
       }
 
-      // CLICK ON TEA STALL -> LÁI XE TRỰC TIẾP TỚI QUÁN TRÀ ĐÁ ĐỂ HỒI THỂ LỰC!
+      // CLICK ON TEA STALL OR PARK -> HỒI THỂ LỰC!
       if (cx >= map.teaStall.x && cx <= map.teaStall.x + map.teaStall.w &&
           cy >= map.teaStall.y && cy <= map.teaStall.y + map.teaStall.h) {
-        bike.targetX = map.teaStall.x + 45;
-        bike.targetY = map.teaStall.y + 35;
+        bike.targetX = map.teaStall.x + 60;
+        bike.targetY = map.teaStall.y + 40;
         addLog('☕ Đang lái xe tới Quán Trà Đá để hồi phục thể lực...');
         return;
       }
+      if (cx >= map.park.x && cx <= map.park.x + map.park.w &&
+          cy >= map.park.y && cy <= map.park.y + map.park.h) {
+        bike.targetX = map.park.x + 60;
+        bike.targetY = map.park.y + 40;
+        addLog('🌳 Đang tấp vào Công Viên Shipper để nghỉ ngơi hồi sức...');
+        return;
+      }
 
-      // Click on Gas Station -> Lái xe tới sửa xe
+      // Click on Gas Station or Logistics Hub -> SỬA XE & BẢO DƯỠNG
       if (cx >= map.gasStation.x && cx <= map.gasStation.x + map.gasStation.w &&
           cy >= map.gasStation.y && cy <= map.gasStation.y + map.gasStation.h) {
-        bike.targetX = map.gasStation.x + 50;
-        bike.targetY = map.gasStation.y + 35;
+        bike.targetX = map.gasStation.x + 60;
+        bike.targetY = map.gasStation.y + 40;
         addLog('⛽ Đang lái xe tới Cây Xăng/Trạm Xe để kiểm tra xe...');
+        return;
+      }
+      if (cx >= map.logisticsHub.x && cx <= map.logisticsHub.x + map.logisticsHub.w &&
+          cy >= map.logisticsHub.y && cy <= map.logisticsHub.y + map.logisticsHub.h) {
+        bike.targetX = map.logisticsHub.x + 60;
+        bike.targetY = map.logisticsHub.y + 40;
+        addLog('⚡ Đang lái xe tới Kho Logistics & Trạm Sạc...');
+        return;
+      }
+
+      // Click on Customer A or B -> Giao hàng
+      if (cx >= map.customerA.x && cx <= map.customerA.x + map.customerA.w &&
+          cy >= map.customerA.y && cy <= map.customerA.y + map.customerA.h) {
+        bike.targetX = map.customerA.x + 60;
+        bike.targetY = map.customerA.y + 40;
+        addLog('🏠 Đang lái xe tới Nhà Khách Hàng A...');
+        return;
+      }
+      if (cx >= map.customerB.x && cx <= map.customerB.x + map.customerB.w &&
+          cy >= map.customerB.y && cy <= map.customerB.y + map.customerB.h) {
+        bike.targetX = map.customerB.x + 60;
+        bike.targetY = map.customerB.y + 40;
+        addLog('🏢 Đang lái xe tới Chung Cư Khách B...');
         return;
       }
 
@@ -350,14 +413,19 @@ export default function GigEconomy2D() {
       if (gameRef.current.weather === 'rain') gameRef.current.targetDrain += 5;
       if (gameRef.current.weather === 'storm') gameRef.current.targetDrain += 10;
 
+      // Chọn ngẫu nhiên quán cơm hoặc quán trà sữa bánh mì
+      const isBeverage = newOrder.name.includes('Trà') || newOrder.name.includes('Cà Phê') || newOrder.name.includes('Bánh Mì');
+      const pickShop = isBeverage ? map.milkTeaShop : map.restaurant;
+      gameRef.current.targetShop = pickShop;
+
       gameRef.current.missionState = 'to_restaurant';
       setMissionState('to_restaurant');
-      bike.targetX = map.restaurant.x + 50;
-      bike.targetY = map.restaurant.y + 35;
+      bike.targetX = pickShop.x + 60;
+      bike.targetY = pickShop.y + 40;
       bike.hasFood = false;
       setHasFood(false);
 
-      addLog(`🔔 <strong>Nổ đơn ngẫu nhiên:</strong> ${newOrder.name} (${newOrder.distance} km) - Giá: <strong>${newOrder.price}k VNĐ</strong>!`);
+      addLog(`🔔 <strong>Nổ đơn ngẫu nhiên:</strong> ${newOrder.name} (${newOrder.distance} km) - Giá: <strong>${newOrder.price}k VNĐ</strong>! Lấy tại ${pickShop.label}`);
     };
 
     window.__restDriver = () => {
@@ -399,32 +467,116 @@ export default function GigEconomy2D() {
       ctx.fillStyle = gameRef.current.isNight ? '#090d16' : '#1e293b';
       ctx.fillRect(0, 0, w, h);
 
-      // Roads
-      ctx.fillStyle = gameRef.current.isNight ? '#131b2e' : '#334155';
-      ctx.fillRect(0, 155, w, 60);
-      ctx.fillRect(60, 0, 70, h);
-      ctx.fillRect(340, 0, 70, h);
-      ctx.fillRect(570, 0, 70, h);
+      // --- 5 KHU VỰC ĐÔ THỊ ĐẶC TRƯNG ---
+      // Khu 1: Phố Ẩm Thực (x: 10..155)
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.05)';
+      ctx.fillRect(10, 8, 150, h - 16);
+      // Khu 2: Ăn Vặt & Logistics (x: 205..350)
+      ctx.fillStyle = 'rgba(236, 72, 153, 0.05)';
+      ctx.fillRect(205, 8, 145, h - 16);
+      // Khu 3: Trung Tâm Dịch Vụ Lao Động (x: 395..540)
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.05)';
+      ctx.fillRect(395, 8, 145, h - 16);
+      // Khu 4: Khu Dân Cư & Công Viên (x: 585..730)
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.05)';
+      ctx.fillRect(585, 8, 145, h - 16);
+      // Khu 5: Đô Thị Công Nghệ Cao (x: 775..w-10)
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.05)';
+      ctx.fillRect(775, 8, Math.max(150, w - 785), h - 16);
 
-      ctx.strokeStyle = '#e2e8f0';
+      // Tên các khu vực (Subtle Headers)
+      ctx.font = 'bold 9px system-ui';
+      ctx.fillStyle = '#f59e0b88'; ctx.textAlign = 'center'; ctx.fillText('🍜 PHỐ ẨM THỰC', 85, 22);
+      ctx.fillStyle = '#ec489988'; ctx.fillText('🧋 PHỐ ĂN VẶT & KHO', 277, 22);
+      ctx.fillStyle = '#10b98188'; ctx.fillText('☕ TRUNG TÂM NGHỈ CHÂN', 467, 22);
+      ctx.fillStyle = '#22c55e88'; ctx.fillText('🌳 CÔNG VIÊN & DÂN CƯ', 657, 22);
+      ctx.fillStyle = '#a78bfa88'; ctx.fillText('🏢 ĐÔ THỊ CÔNG NGHỆ CAO', 852, 20);
+
+      // --- HỆ THỐNG ĐƯỜNG PHỐ & VỈA HÈ ---
+      // Vỉa hè đá (Sidewalks)
+      ctx.fillStyle = gameRef.current.isNight ? '#1e293b' : '#475569';
+      ctx.fillRect(0, 165, w, 90); // Trục chính ngang
+      ctx.fillRect(155, 0, 60, h);  // Phố dọc 1
+      ctx.fillRect(345, 0, 60, h);  // Phố dọc 2
+      ctx.fillRect(535, 0, 60, h);  // Phố dọc 3
+      ctx.fillRect(725, 0, 60, h);  // Phố dọc 4
+
+      // Lòng đường nhựa Asphalt
+      ctx.fillStyle = gameRef.current.isNight ? '#0f172a' : '#334155';
+      ctx.fillRect(0, 175, w, 70); // Trục chính ngang
+      ctx.fillRect(160, 0, 50, h);
+      ctx.fillRect(350, 0, 50, h);
+      ctx.fillRect(540, 0, 50, h);
+      ctx.fillRect(730, 0, 50, h);
+
+      // Vạch sơn đường (Lanes)
+      ctx.strokeStyle = '#fef08a'; // Vạch vàng đôi trục chính
       ctx.lineWidth = 2;
-      ctx.setLineDash([10, 10]);
-      ctx.beginPath(); ctx.moveTo(0, 185); ctx.lineTo(w, 185); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(95, 0); ctx.lineTo(95, h); ctx.stroke();
+      ctx.setLineDash([12, 10]);
+      ctx.beginPath(); ctx.moveTo(0, 210); ctx.lineTo(w, 210); ctx.stroke();
+
+      // Vạch trắng phân làn các đường nhánh
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([8, 8]);
+      ctx.beginPath(); ctx.moveTo(185, 0); ctx.lineTo(185, h); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(375, 0); ctx.lineTo(375, h); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(605, 0); ctx.lineTo(605, h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(565, 0); ctx.lineTo(565, h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(755, 0); ctx.lineTo(755, h); ctx.stroke();
       ctx.setLineDash([]);
 
-      // Landmarks
-      drawLandmark(ctx, map.restaurant.x, map.restaurant.y, map.restaurant.w, map.restaurant.h, '🍜', 'Quán Cơm', '#f59e0b', bike.hasFood ? '' : '👉 Lấy món');
-      drawLandmark(ctx, map.teaStall.x, map.teaStall.y, map.teaStall.w, map.teaStall.h, '☕', 'Quán Trà Đá', '#10b981', 'Ghé tự hồi thể lực');
-      drawLandmark(ctx, map.gasStation.x, map.gasStation.y, map.gasStation.w, map.gasStation.h, '⛽', 'Trạm Xe/Xăng', '#d97706', 'Khi hao mòn tự ghé');
-      drawLandmark(ctx, map.customerA.x, map.customerA.y, map.customerA.w, map.customerA.h, '🏠', 'Khách Hàng A', '#06b6d4', bike.hasFood ? '🎯 Giao tới!' : 'Chờ món');
-      drawLandmark(ctx, map.customerB.x, map.customerB.y, map.customerB.w, map.customerB.h, '🏢', 'Khách B (Ghép)', '#3b82f6', gameRef.current.isBatchedOrder && bike.hasFood ? '🎯 Giao tiếp!' : 'Đơn ghép');
-      drawLandmark(ctx, map.policePoint.x, map.policePoint.y, map.policePoint.w, map.policePoint.h, '🚨', 'Chốt CSGT', '#ef4444', 'Coi chừng phạt');
+      // Vạch kẻ sang đường cho người đi bộ (Zebra Crosswalks)
+      drawCrosswalk(ctx, 160, 163, 50, 12, false);
+      drawCrosswalk(ctx, 160, 245, 50, 12, false);
+      drawCrosswalk(ctx, 350, 163, 50, 12, false);
+      drawCrosswalk(ctx, 350, 245, 50, 12, false);
+      drawCrosswalk(ctx, 540, 163, 50, 12, false);
+      drawCrosswalk(ctx, 540, 245, 50, 12, false);
+      drawCrosswalk(ctx, 730, 163, 50, 12, false);
+      drawCrosswalk(ctx, 730, 245, 50, 12, false);
+
+      // Hàng cây xanh vỉa hè
+      const treeLocs = [
+        [18, 125], [142, 125], [212, 125], [338, 125], [402, 125], [528, 125], [592, 125], [718, 125], [782, 125], [920, 125],
+        [18, 280], [142, 280], [212, 280], [338, 280], [402, 280], [528, 280], [592, 280], [718, 280], [782, 280], [920, 280]
+      ];
+      treeLocs.forEach(([tx, ty]) => drawTree(ctx, tx, ty));
+
+      // Đèn giao thông tại ngã tư trung tâm (350, 175)
+      const tlState = Math.floor(Date.now() / 4000) % 3 === 0 ? 'green' : Math.floor(Date.now() / 4000) % 3 === 1 ? 'yellow' : 'red';
+      drawTrafficLight(ctx, 342, 172, tlState);
+
+      // Người đi bộ qua đường (Pedestrians)
+      pedestrians.forEach(p => {
+        p.y += p.vy;
+        if (p.y > p.maxy || p.y < p.miny) p.vy = -p.vy;
+        drawPedestrian(ctx, p);
+      });
+
+      // Các Shipper Đồng Nghiệp AI chạy trên đường (Traffic)
+      aiShippers.forEach(s => {
+        s.x += s.vx;
+        s.y += s.vy;
+        if (s.x > w + 30) s.x = -30;
+        if (s.x < -30) s.x = w + 30;
+        if (s.y > h + 30) s.y = -30;
+        if (s.y < -30) s.y = h + 30;
+        drawAiShipper(ctx, s);
+      });
+
+      // --- VẼ 10 TÒA NHÀ & CÔNG TRÌNH ---
+      drawLandmark(ctx, map.restaurant.x, map.restaurant.y, map.restaurant.w, map.restaurant.h, map.restaurant.emoji, map.restaurant.label, map.restaurant.color, bike.hasFood ? '' : map.restaurant.sub);
+      drawLandmark(ctx, map.gasStation.x, map.gasStation.y, map.gasStation.w, map.gasStation.h, map.gasStation.emoji, map.gasStation.label, map.gasStation.color, map.gasStation.sub);
+      drawLandmark(ctx, map.milkTeaShop.x, map.milkTeaShop.y, map.milkTeaShop.w, map.milkTeaShop.h, map.milkTeaShop.emoji, map.milkTeaShop.label, map.milkTeaShop.color, bike.hasFood ? '' : map.milkTeaShop.sub);
+      drawLandmark(ctx, map.logisticsHub.x, map.logisticsHub.y, map.logisticsHub.w, map.logisticsHub.h, map.logisticsHub.emoji, map.logisticsHub.label, map.logisticsHub.color, map.logisticsHub.sub);
+      drawLandmark(ctx, map.teaStall.x, map.teaStall.y, map.teaStall.w, map.teaStall.h, map.teaStall.emoji, map.teaStall.label, map.teaStall.color, map.teaStall.sub);
+      drawLandmark(ctx, map.policePoint.x, map.policePoint.y, map.policePoint.w, map.policePoint.h, map.policePoint.emoji, map.policePoint.label, map.policePoint.color, map.policePoint.sub);
+      drawLandmark(ctx, map.park.x, map.park.y, map.park.w, map.park.h, map.park.emoji, map.park.label, map.park.color, map.park.sub);
+      drawLandmark(ctx, map.customerA.x, map.customerA.y, map.customerA.w, map.customerA.h, map.customerA.emoji, map.customerA.label, map.customerA.color, bike.hasFood ? '🎯 Giao tới!' : map.customerA.sub);
+      drawLandmark(ctx, map.customerB.x, map.customerB.y, map.customerB.w, map.customerB.h, map.customerB.emoji, map.customerB.label, map.customerB.color, gameRef.current.isBatchedOrder && bike.hasFood ? '🎯 Giao tiếp!' : map.customerB.sub);
       drawTower(ctx, map.platformHQ.x, map.platformHQ.y, map.platformHQ.w, map.platformHQ.h, gameRef.current.algoLevel);
 
-      // Movement
+      // --- ĐIỀU KHIỂN & CHUYỂN ĐỘNG XE CỦA NGƯỜI CHƠI ---
       if (keys.w || keys.s || keys.a || keys.d) {
         bike.targetX = bike.x; bike.targetY = bike.y;
         const spd = (gameRef.current.bikeHealth > 30 ? 4.2 : 2.5) * gameRef.current.algoSpeed;
@@ -447,16 +599,16 @@ export default function GigEconomy2D() {
             setMissionState('to_customer');
             bike.hasFood = true;
             setHasFood(true);
-            bike.targetX = map.customerA.x + 45;
-            bike.targetY = map.customerA.y + 35;
-            addLog(`📦 Đã lấy món (${gameRef.current.targetPrice}k)! Đang phóng xe đến Nhà Khách...`);
+            bike.targetX = map.customerA.x + 60;
+            bike.targetY = map.customerA.y + 40;
+            addLog(`📦 Đã lấy món (${gameRef.current.targetPrice}k)! Đang phóng xe đến Nhà Khách A...`);
           } else if (gameRef.current.missionState === 'to_customer') {
             gameRef.current.missionState = 'idle';
             setMissionState('idle');
             bike.hasFood = false;
             setHasFood(false);
-            bike.targetX = 375;
-            bike.targetY = 185;
+            bike.targetX = 470;
+            bike.targetY = 210;
 
             const finalPrice = gameRef.current.targetPrice;
             const m = finalPrice * gameRef.current.platformCutRate;
@@ -464,7 +616,7 @@ export default function GigEconomy2D() {
 
             const nextEnergy = Math.max(0, gameRef.current.energy - gameRef.current.targetDrain);
             const nextWage = gameRef.current.driverWage + driverGross; // Nhận đủ tiền cuốc
-            const nextCost = gameRef.current.driverCost; // Chưa trừ phí trạm xăng, khi nào độ bền giảm tự tới
+            const nextCost = gameRef.current.driverCost; // Chưa trừ phí trạm xăng
             const nextSurplus = gameRef.current.surplusM + m;
             const nextOrders = gameRef.current.completedOrders + (gameRef.current.isBatchedOrder ? 2 : 1);
             
@@ -521,39 +673,40 @@ export default function GigEconomy2D() {
         }
       }
 
-      // --- CƠ CHẾ TỰ ĐỘNG HỒI PHỤC THỂ LỰC KHI GHÉ QUÁN TRÀ ĐÁ ---
-      const distToTea = Math.hypot(bike.x - (map.teaStall.x + 45), bike.y - (map.teaStall.y + 30));
-      if (distToTea < 45) {
+      // --- CƠ CHẾ TỰ ĐỘNG HỒI THỂ LỰC (QUÁN TRÀ ĐÁ HOẶC CÔNG VIÊN) ---
+      const distToTea = Math.hypot(bike.x - (map.teaStall.x + 60), bike.y - (map.teaStall.y + 40));
+      const distToPark = Math.hypot(bike.x - (map.park.x + 60), bike.y - (map.park.y + 40));
+      if (distToTea < 50 || distToPark < 50) {
         if (gameRef.current.energy < 100) {
-          // Hồi phục thể lực dần dần liên tục lên 100%
           const healedEnergy = Math.min(100, gameRef.current.energy + 0.8);
           gameRef.current.energy = healedEnergy;
           setEnergy(healedEnergy);
 
-          // Tạo hạt hồi phục màu xanh lá cây
           if (Math.random() < 0.4) {
             healingParticles.push({
               x: bike.x + (Math.random() - 0.5) * 20,
               y: bike.y - 10,
               vy: -1.2,
               life: 1.0,
-              text: '+Thể lực ☕'
+              text: distToTea < 50 ? '+Thể lực ☕' : '+Bóng mát 🌳'
             });
           }
 
-          // Âm thanh hồi máu cách quãng
           const now = Date.now();
           if (now - lastHealSoundTime > 600) {
             playSound('heal');
             lastHealSoundTime = now;
-            addLog(`☕ <strong>Đang uống trà đá hồi sức:</strong> Thể lực tăng lên ${Math.round(healedEnergy)}%!`);
+            addLog(distToTea < 50 
+              ? `☕ <strong>Uống trà đá hồi sức:</strong> Thể lực tăng lên ${Math.round(healedEnergy)}%!`
+              : `🌳 <strong>Nghỉ ngơi công viên:</strong> Thể lực tăng lên ${Math.round(healedEnergy)}%!`);
           }
         }
       }
 
-      // --- CƠ CHẾ SỬA XE & ĐỔ XĂNG KHI CHỦ ĐỘNG GHÉ TRẠM XE ---
-      const distToGas = Math.hypot(bike.x - (map.gasStation.x + 50), bike.y - (map.gasStation.y + 30));
-      if (distToGas < 45) {
+      // --- CƠ CHẾ SỬA XE & BẢO DƯỠNG (CÂY XĂNG HOẶC KHO SẠC) ---
+      const distToGas = Math.hypot(bike.x - (map.gasStation.x + 60), bike.y - (map.gasStation.y + 40));
+      const distToHub = Math.hypot(bike.x - (map.logisticsHub.x + 60), bike.y - (map.logisticsHub.y + 40));
+      if (distToGas < 50 || distToHub < 50) {
         if (gameRef.current.bikeHealth < 100) {
           const damage = 100 - gameRef.current.bikeHealth;
           let repairCost = Math.max(15, Math.round(damage * 0.5));
@@ -569,7 +722,7 @@ export default function GigEconomy2D() {
               gameRef.current.bikeHealth = 100;
               spawnRepairCash(bike.x, bike.y, repairCost);
               playSound('coin');
-              addLog(`🔧 <strong>Đã ghé Trạm Xe:</strong> Tự trả tiền xăng & bảo dưỡng -${repairCost}k (c) từ tiền túi. Xe phục hồi 100% độ bền!`);
+              addLog(`🔧 <strong>Bảo dưỡng xe thành công:</strong> Tự trả tiền xăng & bảo dưỡng -${repairCost}k (c) từ tiền túi. Xe phục hồi 100% độ bền!`);
             }
           } else {
             const now = Date.now();
@@ -581,13 +734,19 @@ export default function GigEconomy2D() {
         }
       }
 
-      // Proximity checks at Restaurant and Customer
-      if (Math.hypot(bike.x - (map.restaurant.x + 50), bike.y - (map.restaurant.y + 35)) < 35 && !bike.hasFood) {
+      // --- KIỂM TRA ĐIỂM LẤY MÓN (QUÁN CƠM HOẶC TRÀ SỮA) ---
+      const atFoodShop = Math.hypot(bike.x - (map.restaurant.x + 60), bike.y - (map.restaurant.y + 40)) < 45 ||
+                         Math.hypot(bike.x - (map.milkTeaShop.x + 60), bike.y - (map.milkTeaShop.y + 40)) < 45;
+      if (atFoodShop && !bike.hasFood && gameRef.current.missionState === 'to_restaurant') {
         bike.hasFood = true;
         setHasFood(true);
-        addLog('🍜 Lấy món tại Quán Cơm! Lái xe đến Khách Hàng để giao.');
+        addLog('🍜 Lấy món thành công! Đang lái xe đến Khách Hàng để giao.');
       }
-      if (Math.hypot(bike.x - (map.customerA.x + 45), bike.y - (map.customerA.y + 35)) < 35 && bike.hasFood) {
+
+      // --- KIỂM TRA ĐIỂM GIAO MÓN (NHÀ KHÁCH A & CHUNG CƯ B) ---
+      const atCustomer = Math.hypot(bike.x - (map.customerA.x + 60), bike.y - (map.customerA.y + 40)) < 45 ||
+                         (gameRef.current.isBatchedOrder && Math.hypot(bike.x - (map.customerB.x + 60), bike.y - (map.customerB.y + 40)) < 45);
+      if (atCustomer && bike.hasFood) {
         bike.hasFood = false;
         setHasFood(false);
         const finalPrice = gameRef.current.targetPrice;
@@ -608,9 +767,10 @@ export default function GigEconomy2D() {
           addLog(`⚠️ <strong>Xe xuống cấp (${nextHealth}%):</strong> Xe chạy chậm lại, hãy chủ động ghé Trạm Xe ⛽ khi thuận tiện!`);
         }
       }
-      // Police
-      const distToPolice = Math.hypot(bike.x - (map.policePoint.x + 45), bike.y - (map.policePoint.y + 30));
-      if (distToPolice < 35) {
+
+      // Chốt CSGT
+      const distToPolice = Math.hypot(bike.x - (map.policePoint.x + 60), bike.y - (map.policePoint.y + 40));
+      if (distToPolice < 40) {
         const now = Date.now();
         if (now - lastPoliceTime > 4000) {
           lastPoliceTime = now;
@@ -684,12 +844,87 @@ export default function GigEconomy2D() {
     };
   }, []);
 
+  function drawCrosswalk(ctx, x, y, w, h, isVertical = false) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    if (isVertical) {
+      for (let sy = y; sy < y + h - 5; sy += 9) {
+        ctx.fillRect(x + 2, sy, w - 4, 4);
+      }
+    } else {
+      for (let sx = x; sx < x + w - 5; sx += 9) {
+        ctx.fillRect(sx, y + 2, 4, h - 4);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawTree(ctx, x, y) {
+    ctx.save();
+    ctx.fillStyle = '#15803d';
+    ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath(); ctx.arc(x - 2, y - 2, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTrafficLight(ctx, x, y, state) {
+    ctx.save();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(x - 4, y - 18, 8, 24);
+    // Red
+    ctx.fillStyle = state === 'red' ? '#ef4444' : '#450a0a';
+    ctx.beginPath(); ctx.arc(x, y - 13, 2.5, 0, Math.PI * 2); ctx.fill();
+    // Yellow
+    ctx.fillStyle = state === 'yellow' ? '#f59e0b' : '#451a03';
+    ctx.beginPath(); ctx.arc(x, y - 7, 2.5, 0, Math.PI * 2); ctx.fill();
+    // Green
+    ctx.fillStyle = state === 'green' ? '#10b981' : '#022c22';
+    ctx.beginPath(); ctx.arc(x, y - 1, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPedestrian(ctx, p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.fillStyle = '#fcd34d'; // Head
+    ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#38bdf8'; // Shirt
+    ctx.fillRect(-2.5, 3.5, 5, 5.5);
+    ctx.restore();
+  }
+
+  function drawAiShipper(ctx, s) {
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    const ang = Math.atan2(s.vy, s.vx);
+    ctx.rotate(ang);
+    // Wheels
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath(); ctx.arc(8, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-8, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+    // Body
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(3, 0); ctx.lineTo(7, -2); ctx.stroke();
+    // Delivery Backpack
+    ctx.fillStyle = s.color;
+    ctx.fillRect(-8, -4, 6, 8);
+    // Rider helmet
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath(); ctx.arc(1, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   function drawLandmark(ctx, x, y, w, h, emoji, name, color, badge) {
     ctx.save();
     ctx.fillStyle = '#1e293b';
     ctx.strokeStyle = color;
     ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); ctx.stroke();
+
+    // Accent roof bar
+    ctx.fillStyle = color;
+    ctx.fillRect(x + 4, y + 2, w - 8, 3);
 
     ctx.font = '22px system-ui'; ctx.textAlign = 'center';
     ctx.fillText(emoji, x + w / 2, y + 28);
@@ -699,7 +934,7 @@ export default function GigEconomy2D() {
 
     if (badge) {
       ctx.font = '9px system-ui'; ctx.fillStyle = color;
-      ctx.fillText(badge, x + w / 2, y + 56);
+      ctx.fillText(badge, x + w / 2, y + 58);
     }
     ctx.restore();
   }
@@ -958,11 +1193,11 @@ export default function GigEconomy2D() {
       </div>
 
       {/* 2D Canvas Viewport (100% THÔNG THOÁNG) */}
-      <div style={{ position: 'relative', width: '100%', height: '370px', borderRadius: '16px', overflow: 'hidden', border: '2px solid #1e293b', background: '#090d16' }}>
+      <div style={{ position: 'relative', width: '100%', height: '425px', borderRadius: '16px', overflow: 'hidden', border: '2px solid #1e293b', background: '#090d16' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', cursor: 'pointer' }} />
 
-        <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid #334155', borderRadius: '20px', padding: '4px 16px', fontSize: '11px', color: '#cbd5e1', pointerEvents: 'none' }}>
-          ☕ <em>Lái xe hoặc nhấp vào Quán Trà Đá: xe sẽ tự chạy tới và TỰ ĐỘNG HỒI THỂ LỰC!</em>
+        <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid #334155', borderRadius: '20px', padding: '4px 16px', fontSize: '11px', color: '#cbd5e1', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          ☕ <em>Khám phá 5 khu phố: Quán Cơm, Trà Sữa, Cây Xăng, Quán Trà Đá & Công Viên (tự hồi thể lực), Chung Cư Khách!</em>
         </div>
       </div>
 
